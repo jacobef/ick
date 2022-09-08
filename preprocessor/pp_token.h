@@ -2,6 +2,9 @@
 #define ICK_PP_TOKEN_H
 
 #include <stdbool.h>
+#include <stdio.h>
+#include "data_structures/vector.h"
+#include "lines.h"
 
 enum detection_status {
     IMPOSSIBLE,
@@ -46,6 +49,7 @@ struct pp_number_detector {
     bool looking_for_ucn;
     bool looking_for_digit;
     bool is_first_char;
+    bool next_char_invalid;
 };
 
 struct pp_number_detector detect_pp_number(struct pp_number_detector detector, char c);
@@ -86,7 +90,48 @@ struct char_const_str_literal_detector detect_string_literal(struct char_const_s
 
 struct punctuator_detector {
     enum detection_status status;
-    char last_char;
+    char next_char_options[4];
+    unsigned char char_n;
+    unsigned char n_next_char_options;
+    char prev_char;
 };
+
+struct punctuator_detector detect_punctuator(struct punctuator_detector detector, char c);
+
+static struct punctuator_detector detect_punctuator_test(struct punctuator_detector detector, char *s) {
+    while (*s) {
+        detector = detect_punctuator(detector, *s);
+        s++;
+    }
+    return detector;
+}
+
+struct single_char_detector {
+    enum detection_status status;
+};
+
+struct preprocessing_token_detector {
+    struct header_name_detector header_name_detector;
+    struct identifier_detector identifier_detector;
+    struct pp_number_detector pp_number_detector;
+    struct char_const_str_literal_detector character_constant_detector;
+    struct char_const_str_literal_detector string_literal_detector;
+    struct punctuator_detector punctuator_detector;
+    struct single_char_detector single_char_detector;
+    enum detection_status status;
+    enum detection_status prev_status;
+    bool is_first_char;
+    bool was_first_char;
+};
+
+struct preprocessing_token_detector detect_preprocessing_token(struct preprocessing_token_detector detector, char c);
+
+typedef struct preprocessing_token {
+    const char *first;
+    const char *last;
+} pp_token;
+
+DEFINE_VEC_TYPE_AND_FUNCTIONS(pp_token)
+pp_token_vec get_pp_tokens(struct lines lines);
 
 #endif //ICK_PP_TOKEN_H

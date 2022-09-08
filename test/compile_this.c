@@ -1,6 +1,6 @@
-??=include <stdio.h>
+#include <stdio.h>
 
-int main(void) ??<
-    printf("hello world\n");
+int main() {
+    printf("hello preprocessor tokenization (almost)\n");
     return 0;
-??>
+}
