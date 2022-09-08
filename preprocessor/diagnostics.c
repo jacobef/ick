@@ -1,7 +1,3 @@
-//
-// Created by Jacob Friedman on 8/30/22.
-//
-
 #include "diagnostics.h"
 #include <stdarg.h>
 #include <stdlib.h>

@@ -1,7 +1,3 @@
-//
-// Created by Jacob Friedman on 8/30/22.
-//
-
 #ifndef TEST_DIAGNOSTICS_H
 #define TEST_DIAGNOSTICS_H
 

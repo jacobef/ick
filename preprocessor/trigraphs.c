@@ -1,4 +1,3 @@
-
 #include "trigraphs.h"
 
 #include <limits.h>

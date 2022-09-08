@@ -1,4 +1,3 @@
-
 #include "diagnostics.h"
 
 #define VFPRINTF_VAARGS_FOLLOW(_stream, _fmt) \

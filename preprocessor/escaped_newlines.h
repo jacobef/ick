@@ -1,7 +1,3 @@
-//
-// Created by Jacob Friedman on 9/4/22.
-//
-
 #ifndef TEST_ESCAPED_NEWLINES_H
 #define TEST_ESCAPED_NEWLINES_H
 

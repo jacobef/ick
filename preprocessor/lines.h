@@ -1,7 +1,3 @@
-//
-// Created by Jacob Friedman on 8/31/22.
-//
-
 #ifndef TEST_LINES_H
 #define TEST_LINES_H
 

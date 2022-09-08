@@ -7,6 +7,7 @@
 #include "preprocessor/trigraphs.h"
 #include "preprocessor/escaped_newlines.h"
 #include "preprocessor/diagnostics.h"
+#include "preprocessor/pp_token.h"
 
 char *ick_progname;
 
@@ -54,6 +55,17 @@ int main(int argc, char *argv[]) {
     fwrite(logical_lines.chars, sizeof(char), logical_lines.n_chars, output_file);
 
     fclose(output_file);
+
+    struct universal_character_name_detector initial_ucnd = {.status=POSSIBLE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false};
+    struct identifier_detector idd = {.is_first_char=true, .status=POSSIBLE,
+            .ucn_detector=initial_ucnd};
+    struct pp_number_detector pnd = {.status=POSSIBLE, .looking_for_digit=false, .looking_for_ucn=false, .looking_for_sign=false, .is_first_char=true,
+            .ucn_detector=initial_ucnd};
+    struct escape_sequence_detector esd = {.status=POSSIBLE, .looking_for_hex=false, .looking_for_octal=false, .next_char_invalid=false,
+            .is_first_char=true, .is_second_char=false, .n_octals=0, .ucn_detector=initial_ucnd};
+    struct char_const_str_literal_detector ccd = {.status=POSSIBLE, .esc_seq_detector=esd, .looking_for_open_quote=true, .looking_for_char_seq=false,
+            .prev_esc_seq_status=POSSIBLE, .is_first_char=true};
+    ccd = detect_character_constant_test(ccd, "L\'\\U123456789\'");
 
     free(source_lines.chars);
     if (source_lines.chars != trigraphs_replaced.chars) free(trigraphs_replaced.chars);

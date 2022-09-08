@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-set(SOURCE_FILES data_structures/vector.h driver/diagnostics.c driver/diagnostics.h data_structures/map.c data_structures/map.h preprocessor/trigraphs.c preprocessor/trigraphs.h unfinished/type_tokens.h driver/file_utils.c driver/file_utils.h data_structures/sstr.c data_structures/sstr.h preprocessor/lines.c preprocessor/lines.h preprocessor/diagnostics.c preprocessor/diagnostics.h preprocessor/lines.h preprocessor/escaped_newlines.c preprocessor/escaped_newlines.h)
+set(SOURCE_FILES data_structures/vector.h driver/diagnostics.c driver/diagnostics.h data_structures/map.c data_structures/map.h preprocessor/trigraphs.c preprocessor/trigraphs.h driver/file_utils.c driver/file_utils.h data_structures/sstr.c data_structures/sstr.h preprocessor/lines.c preprocessor/lines.h preprocessor/diagnostics.c preprocessor/diagnostics.h preprocessor/lines.h preprocessor/escaped_newlines.c preprocessor/escaped_newlines.h preprocessor/pp_token.c preprocessor/pp_token.h)
 
 project(ick C)
 

@@ -1,4 +1,3 @@
-
 #ifndef ICK_C_TYPE_TOKENS_H
 #define ICK_C_TYPE_TOKENS_H
 

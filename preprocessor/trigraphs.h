@@ -1,4 +1,3 @@
-
 #ifndef ICK_TRIGRAPHS_H
 #define ICK_TRIGRAPHS_H
 

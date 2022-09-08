@@ -1,4 +1,3 @@
-
 #ifndef ICK_DIAGNOSTICS_H
 #define ICK_DIAGNOSTICS_H
 

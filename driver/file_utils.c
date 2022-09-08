@@ -1,4 +1,3 @@
-
 #include "file_utils.h"
 #include "diagnostics.h"
 #include <errno.h>

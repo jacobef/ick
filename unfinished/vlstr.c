@@ -1,4 +1,3 @@
-
 #include "vlstr.h"
 
 void vlstr_init(vlstr *vlstr_p, size_t initial_len) {

@@ -1,7 +1,3 @@
-//
-// Created by Jacob Friedman on 9/4/22.
-//
-
 #include <stdlib.h>
 #include "escaped_newlines.h"
 

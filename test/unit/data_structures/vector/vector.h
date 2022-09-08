@@ -1,7 +1,3 @@
-//
-// Created by Jacob Friedman on 8/24/22.
-//
-
 #ifndef TEST_VECTOR_H
 #define TEST_VECTOR_H
 

@@ -1,4 +1,3 @@
-
 #include "map.h"
 
 // TODO make this a real hash function

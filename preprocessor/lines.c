@@ -1,7 +1,3 @@
-//
-// Created by Jacob Friedman on 8/29/22.
-//
-
 #include "data_structures/vector.h"
 #include "lines.h"
 
