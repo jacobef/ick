@@ -302,7 +302,7 @@ static struct char_const_str_literal_detector detect_char_const_str_literal(stru
     else if (c == quote && detector.looking_for_esc_seq) {
         detector.status = IMPOSSIBLE;
     }
-    else if (c == quote && !detector.is_first_char && detector.prev_char == quote) {
+    else if (c == quote && !detector.is_first_char && detector.prev_char == quote && quote == '\'') {
         detector.status = IMPOSSIBLE;
     }
     else if (c == quote) {
