@@ -559,6 +559,13 @@ void add_type(struct preprocessing_token *token, struct preprocessing_token_dete
     if (detector.single_char_detector.status == TRUE) token->type |= SINGLE_CHAR_MASK;
 }
 
+static bool token_is_str(struct preprocessing_token token, const char *str) {
+    for (const char *tok_it = token.first, *str_it = str; tok_it != token.last+1 && *str_it; tok_it++, str_it++) {
+        if (*tok_it != *str_it) return false;
+    }
+    return true;
+}
+
 pp_token_vec get_pp_tokens(struct lines lines) {
     struct universal_character_name_detector initial_ucnd =
             {.status=POSSIBLE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false};
@@ -594,7 +601,6 @@ pp_token_vec get_pp_tokens(struct lines lines) {
         struct preprocessing_token token = {.type = 0};
         for (size_t char_i = 0; char_i < lines.lines[ln_i].n_chars; char_i++) {
             const char *c = &lines.lines[ln_i].chars[char_i];
-
             comment_detector = detect_comment(comment_detector, *c);
             if (comment_detector.status == TRUE && !detector.string_literal_detector.in_literal
                 && !detector.character_constant_detector.in_literal) {
@@ -612,9 +618,15 @@ pp_token_vec get_pp_tokens(struct lines lines) {
             if ((detector.status == POSSIBLE || detector.status == TRUE) && (detector.was_first_char || detector.prev_status == IMPOSSIBLE)) {
                 token.first = c;
             }
+            // TODO cleanup oh my god this is awful
             else if (detector.status == IMPOSSIBLE && detector.prev_status == TRUE) {
                 token.last = c-1;
                 add_type(&token, prev_detector);
+                if (!(result.n_elements >= 2
+                && token_is_str(result.arr[result.n_elements-1], "include")
+                && token_is_str(result.arr[result.n_elements-2], "#"))) {
+                    token.type &= ~HEADER_NAME_MASK;
+                }
                 pp_token_vec_append(&result, token);
                 token.type = 0;
                 char_i--;
@@ -623,6 +635,11 @@ pp_token_vec get_pp_tokens(struct lines lines) {
             if (detector.status == TRUE && char_i == lines.lines[ln_i].n_chars-1) {
                 token.last = c;
                 add_type(&token, detector);
+                if (!(result.n_elements >= 2
+                      && token_is_str(result.arr[result.n_elements-1], "include")
+                      && token_is_str(result.arr[result.n_elements-2], "#"))) {
+                    token.type &= ~HEADER_NAME_MASK;
+                }
                 pp_token_vec_append(&result, token);
                 token.type = 0;
             }
