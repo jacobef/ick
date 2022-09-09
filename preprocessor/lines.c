@@ -1,7 +1,7 @@
 #include "data_structures/vector.h"
 #include "lines.h"
 
-struct lines get_lines(const char *chars, size_t n_chars) {
+struct lines get_lines(char *chars, size_t n_chars) {
     size_t n_lines = 1;
     for (size_t i = 0; i+1 < n_chars; i++) {
         if (chars[i] == '\n') n_lines++;

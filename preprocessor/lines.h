@@ -14,7 +14,7 @@ struct lines {
     size_t n_chars;
 };
 
-struct lines get_lines(const char *chars, size_t n_chars);
+struct lines get_lines(char *chars, size_t n_chars);
 
 
 #endif //TEST_LINES_H

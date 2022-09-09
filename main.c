@@ -13,13 +13,13 @@
 char *ick_progname;
 
 int main(int argc, char *argv[]) {
-    if (argc == 0 || (argv[0][0] == "\0")) ick_progname = "ick";
+    if (argc == 0 || (argv[0][0] == '\0')) ick_progname = "ick";
     else {
         size_t argv0_len = strlen(argv[0]);
         ick_progname = malloc(argv0_len + 1);
         const char *last_path_sep;
         for (last_path_sep = argv[0]+argv0_len-1;
-        last_path_sep >= argv[0] && *last_path_sep != "/" && *last_path_sep != "\\";
+        last_path_sep >= argv[0] && *last_path_sep != '/' && *last_path_sep != '\\';
         last_path_sep--);
         strcpy(ick_progname, last_path_sep + 1); // probably unsafe
     }
@@ -56,14 +56,6 @@ int main(int argc, char *argv[]) {
     fwrite(logical_lines.chars, sizeof(char), logical_lines.n_chars, output_file);
 
     fclose(output_file);
-
-    char *punctuators[] = {"[","]","(",")","{","}",".","->",
-    "++", "--", "&", "*", "+", "-", "~", "!",
-    "/","%","<<", ">>","<",">","<=", ">=", "==", "!=","^","|","&&", "||",
-    "?",":",";","...",
-    "=", "*=", "/=", "%=", "+=", "-=", "<<=", ">>=", "&=", "^=", "|=",
-    ",","#","##",
-    "<:", ":>", "<%", "%>", "%:", "%:%:"};
 
     pp_token_vec hi = get_pp_tokens(logical_lines);
     for (size_t i = 0; i < hi.n_elements; i++) {

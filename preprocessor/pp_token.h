@@ -104,14 +104,6 @@ struct punctuator_detector {
 
 struct punctuator_detector detect_punctuator(struct punctuator_detector detector, char c);
 
-static struct punctuator_detector detect_punctuator_test(struct punctuator_detector detector, char *s) {
-    while (*s) {
-        detector = detect_punctuator(detector, *s);
-        s++;
-    }
-    return detector;
-}
-
 struct single_char_detector {
     enum detection_status status;
     enum detection_status prev_status;
@@ -158,13 +150,6 @@ struct comment_detector {
 };
 
 struct comment_detector detect_comment(struct comment_detector detector, char c);
-static struct comment_detector detect_comment_test(struct comment_detector detector, char *s) {
-    while (*s) {
-        detector = detect_comment(detector, *s);
-        s++;
-    }
-    return detector;
-}
 
 pp_token_vec get_pp_tokens(struct lines lines);
 
