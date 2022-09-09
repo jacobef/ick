@@ -73,7 +73,15 @@ int main(int argc, char *argv[]) {
             printf("%c", *it);
             it++;
         }
-        printf("\n");
+        printf (" (");
+        if (token.type & HEADER_NAME_MASK) printf("header name,");
+        if (token.type & IDENTIFIER_MASK) printf("identifier,");
+        if (token.type & PP_NUMBER_MASK) printf("preprocessing number,");
+        if (token.type & CHARACTER_CONSTANT_MASK) printf("character constant,");
+        if (token.type & STRING_LITERAL_MASK) printf("string literal,");
+        if (token.type & PUNCTUATOR_MASK) printf("punctuator,");
+        if (token.type & SINGLE_CHAR_MASK) printf("single character,");
+        printf(")\n");
     }
 
     free(source_lines.chars);

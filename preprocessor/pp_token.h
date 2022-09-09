@@ -14,6 +14,7 @@ enum detection_status {
 
 struct header_name_detector {
     enum detection_status status;
+    enum detection_status prev_status;
     bool in_quotes;
     bool is_first_char;
 };
@@ -36,6 +37,7 @@ static const struct universal_character_name_detector initial_ucn_detector = {.s
 struct identifier_detector {
     struct universal_character_name_detector ucn_detector;
     enum detection_status status;
+    enum detection_status prev_status;
     bool looking_for_ucn;
     bool is_first_char;
 };
@@ -45,6 +47,7 @@ struct identifier_detector detect_identifier(struct identifier_detector detector
 struct pp_number_detector {
     struct universal_character_name_detector ucn_detector;
     enum detection_status status;
+    enum detection_status prev_status;
     bool looking_for_sign;
     bool looking_for_ucn;
     bool looking_for_digit;
@@ -57,6 +60,7 @@ struct pp_number_detector detect_pp_number(struct pp_number_detector detector, c
 struct escape_sequence_detector {
     struct universal_character_name_detector ucn_detector;
     enum detection_status status;
+    enum detection_status prev_status;
     bool is_first_char;
     bool is_second_char;
     bool looking_for_ucn;
@@ -76,9 +80,10 @@ struct escape_sequence_detector detect_escape_sequence(struct escape_sequence_de
 struct char_const_str_literal_detector {
     struct escape_sequence_detector esc_seq_detector;
     enum detection_status status;
+    enum detection_status prev_status;
     enum detection_status prev_esc_seq_status;
     bool looking_for_open_quote;
-    bool looking_for_char_seq;
+    bool in_literal;
     bool looking_for_esc_seq;
     bool is_first_char;
     char prev_char; // lazy temporary solution for avoiding '' / "" and L'' / L""
@@ -90,6 +95,7 @@ struct char_const_str_literal_detector detect_string_literal(struct char_const_s
 
 struct punctuator_detector {
     enum detection_status status;
+    enum detection_status prev_status;
     char next_char_options[4];
     unsigned char char_n;
     unsigned char n_next_char_options;
@@ -108,6 +114,7 @@ static struct punctuator_detector detect_punctuator_test(struct punctuator_detec
 
 struct single_char_detector {
     enum detection_status status;
+    enum detection_status prev_status;
 };
 
 struct preprocessing_token_detector {
@@ -126,12 +133,41 @@ struct preprocessing_token_detector {
 
 struct preprocessing_token_detector detect_preprocessing_token(struct preprocessing_token_detector detector, char c);
 
+#define HEADER_NAME_MASK        0x40
+#define IDENTIFIER_MASK         0x20
+#define PP_NUMBER_MASK          0x10
+#define CHARACTER_CONSTANT_MASK 0x8
+#define STRING_LITERAL_MASK     0x4
+#define PUNCTUATOR_MASK         0x2
+#define SINGLE_CHAR_MASK        0x1
 typedef struct preprocessing_token {
     const char *first;
     const char *last;
+    unsigned char type;
 } pp_token;
-
 DEFINE_VEC_TYPE_AND_FUNCTIONS(pp_token)
+
+struct comment_detector {
+    enum detection_status status;
+    enum detection_status prev_status;
+    bool is_multiline;
+    bool is_first_char;
+    bool is_second_char;
+    bool next_char_invalid;
+    char prev_char;
+};
+
+struct comment_detector detect_comment(struct comment_detector detector, char c);
+static struct comment_detector detect_comment_test(struct comment_detector detector, char *s) {
+    while (*s) {
+        detector = detect_comment(detector, *s);
+        s++;
+    }
+    return detector;
+}
+
 pp_token_vec get_pp_tokens(struct lines lines);
+
+
 
 #endif //ICK_PP_TOKEN_H

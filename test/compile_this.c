@@ -1,7 +1,11 @@
 #include <stdio.h>
 
-int main() {
-    printf("hello preprocessor tokenization (almost)\n");
-    printf("");
-    return 0;
+// Now with comments!
+int main(void) {
+    printf("hello, preprocessing tokenization");
+    /*
+     * Multiline comments too!
+     * yay
+     */
+    return/*hi*/0;
 }
