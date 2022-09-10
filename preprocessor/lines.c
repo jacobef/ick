@@ -4,6 +4,8 @@
 struct lines get_lines(char *chars, size_t n_chars) {
     if (n_chars == 0) {
         struct lines result = {.lines=malloc(sizeof(struct line)), .n_lines=1, .n_chars=0, .chars=chars};
+        result.lines[0].n_chars = 0;
+        result.lines[0].chars = chars;
         return result;
     }
     size_t n_lines = 1;
