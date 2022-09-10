@@ -609,8 +609,10 @@ pp_token_vec get_pp_tokens(struct lines lines) {
         for (size_t char_i = 0; char_i < lines.lines[ln_i].n_chars; char_i++) {
             const char *c = &lines.lines[ln_i].chars[char_i];
             comment_detector = detect_comment(comment_detector, *c);
-            if (comment_detector.status == TRUE && !detector.string_literal_detector.in_literal
-                && !detector.character_constant_detector.in_literal) {
+            if (detector.string_literal_detector.in_literal || detector.character_constant_detector.in_literal) {
+                comment_detector.status = IMPOSSIBLE;
+            }
+            else if (comment_detector.status == TRUE) {
                 continue;
             }
             else if (comment_detector.status == IMPOSSIBLE && comment_detector.prev_status == TRUE) {
