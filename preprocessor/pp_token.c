@@ -577,7 +577,7 @@ pp_token_vec get_pp_tokens(struct lines lines) {
     pp_token_vec_init(&result, 0);
 
     for (size_t ln_i = 0; ln_i < lines.n_lines; ln_i++) {
-        struct preprocessing_token token = {.possible_types = 0};
+        struct preprocessing_token token;
         for (size_t char_i = 0; char_i < lines.lines[ln_i].n_chars; char_i++) {
             const char *c = &lines.lines[ln_i].chars[char_i];
             comment_detector = detect_comment(comment_detector, *c);
@@ -611,7 +611,6 @@ pp_token_vec get_pp_tokens(struct lines lines) {
                 token.last = c-1;
                 add_type(&token, prev_detector);
                 pp_token_vec_append(&result, token);
-                token.possible_types = 0;
                 char_i--;
                 comment_detector = initial_comment_detector;
             }
@@ -619,7 +618,6 @@ pp_token_vec get_pp_tokens(struct lines lines) {
                 token.last = c;
                 add_type(&token, detector);
                 pp_token_vec_append(&result, token);
-                token.possible_types = 0;
             }
             if (detector.status == IMPOSSIBLE) detector = initial_detector;
         }
