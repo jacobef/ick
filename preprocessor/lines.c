@@ -2,6 +2,10 @@
 #include "lines.h"
 
 struct lines get_lines(char *chars, size_t n_chars) {
+    if (n_chars == 0) {
+        struct lines result = {.lines=malloc(sizeof(struct line)), .n_lines=1, .n_chars=0, .chars=chars};
+        return result;
+    }
     size_t n_lines = 1;
     for (size_t i = 0; i+1 < n_chars; i++) {
         if (chars[i] == '\n') n_lines++;
