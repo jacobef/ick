@@ -2,40 +2,12 @@
 #include "pp_token.h"
 #include "preprocessor/diagnostics.h"
 
-static bool is_letter(char c) {
-    switch (c) {
-        case 'A':case 'B':case 'C':case 'D':case 'E':case 'F':case 'G':case 'H':case 'I':case 'J':case 'K':case 'L':
-        case 'M':case 'N':case 'O':case 'P':case 'Q':case 'R':case 'S':case 'T':case 'U':case 'V':case 'W':case 'X':
-        case 'Y':case 'Z':
-        case 'a':case 'b':case 'c':case 'd':case 'e':case 'f':case 'g':case 'h':case 'i':case 'j':case 'k':case 'l':
-        case 'm':case 'n':case 'o':case 'p':case 'q':case 'r':case 's':case 't':case 'u':case 'v':case 'w':case 'x':
-        case 'y':case 'z':
-            return true;
-        default:
-            return false;
-    }
-}
-
-static bool is_whitespace(char c) {
-    return c == ' ' || c == '\t' || c == '\v' || c == '\n' || c == '\f';
-}
-
-static bool is_hex_digit(char c) {
-    if (c >= '0' && c <= '9') return true;
-    switch (c) {
-        case 'a':case 'b':case 'c':case 'd':case 'e':case 'f':case 'A':case 'B':case 'C':case 'D':case 'E':case 'F':
-            return true;
-        default:
-            return false;
-    }
-}
-
 static bool is_octal_digit(char c) {
     return c >= '0' && c <= '7';
 }
 
 static bool in_src_char_set(char c) {
-    if (is_hex_digit(c) || is_letter(c)) return true;
+    if (isdigit(c) || isalpha(c)) return true;
     switch (c) {
         case '!':case '"':case '#':case '%':case '&':case '\'':case '(':case ')':case '*':case '+':case ',':case '-':
         case '.':case '/':case ':':case ';':case '<':case '=':case '>':case '?':case '[':case '\\':case ']':case '^':
@@ -96,7 +68,7 @@ struct universal_character_name_detector detect_universal_character_name(struct 
     else if (detector.looking_for_uU) {
         detector.status = IMPOSSIBLE;
     }
-    else if (detector.looking_for_digits && is_hex_digit(c)) {
+    else if (detector.looking_for_digits && isxdigit(c)) {
         detector.n_digits++;
         if (detector.n_digits == detector.expected_digits) {
             detector.status = TRUE;
@@ -120,7 +92,7 @@ struct identifier_detector detect_identifier(struct identifier_detector detector
 
     if (detector.status == IMPOSSIBLE) return detector;
 
-    if (!(is_letter(c) || c == '_' || isdigit(c))) {
+    if (!(isalpha(c) || c == '_' || isdigit(c))) {
         detector.status = IMPOSSIBLE;
     }
     else if (detector.is_first_char && isdigit(c)) {
@@ -129,7 +101,7 @@ struct identifier_detector detect_identifier(struct identifier_detector detector
     else if (c == '\\') {
         detector.looking_for_ucn = true;
     }
-    else if (is_whitespace(c)) {
+    else if (isspace(c)) {
         detector.status = IMPOSSIBLE;
     }
     else if (!detector.looking_for_ucn) {
@@ -190,7 +162,7 @@ struct pp_number_detector detect_pp_number(struct pp_number_detector detector, c
             detector.looking_for_ucn = true;
             detector.status = POSSIBLE;
         }
-        else if (!(is_letter(c) || c == '_' || isdigit(c) || c == '.'))  {
+        else if (!(isalpha(c) || c == '_' || isdigit(c) || c == '.'))  {
             detector.status = IMPOSSIBLE;
         }
     }
@@ -251,7 +223,7 @@ struct escape_sequence_detector detect_escape_sequence(struct escape_sequence_de
         detector.n_octals++;
         if (detector.n_octals == 3) detector.next_char_invalid = true;
     }
-    else if (detector.looking_for_hex && is_hex_digit(c)) {
+    else if (detector.looking_for_hex && isxdigit(c)) {
         detector.status = TRUE;
     }
     else {
@@ -470,7 +442,7 @@ struct single_char_detector detect_single_char(struct single_char_detector detec
 
     if (detector.status == IMPOSSIBLE) return detector;
     else if (detector.status == TRUE) detector.status = IMPOSSIBLE;
-    else if (is_whitespace(c)) detector.status = IMPOSSIBLE;
+    else if (isspace(c)) detector.status = IMPOSSIBLE;
     else detector.status = TRUE;
     return detector;
 }
