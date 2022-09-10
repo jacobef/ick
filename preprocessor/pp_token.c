@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include "pp_token.h"
+#include "preprocessor/diagnostics.h"
 
 static bool is_letter(char c) {
     switch (c) {
@@ -550,13 +551,16 @@ struct comment_detector detect_comment(struct comment_detector detector, char c)
 }
 
 void add_type(struct preprocessing_token *token, struct preprocessing_token_detector detector) {
-    if (detector.header_name_detector.status == TRUE) token->type |= HEADER_NAME_MASK;
-    if (detector.identifier_detector.status == TRUE) token->type |= IDENTIFIER_MASK;
-    if (detector.pp_number_detector.status == TRUE) token->type |= PP_NUMBER_MASK;
-    if (detector.character_constant_detector.status == TRUE) token->type |= CHARACTER_CONSTANT_MASK;
-    if (detector.string_literal_detector.status == TRUE) token->type |= STRING_LITERAL_MASK;
-    if (detector.punctuator_detector.status == TRUE) token->type |= PUNCTUATOR_MASK;
-    if (detector.single_char_detector.status == TRUE) token->type |= SINGLE_CHAR_MASK;
+    if (detector.header_name_detector.status == TRUE) token->type = HEADER_NAME;
+    else if (detector.string_literal_detector.status == TRUE) token->type = STRING_LITERAL;
+    else if (detector.identifier_detector.status == TRUE) token->type = IDENTIFIER;
+    else if (detector.pp_number_detector.status == TRUE) token->type = PP_NUMBER;
+    else if (detector.character_constant_detector.status == TRUE) token->type = CHARACTER_CONSTANT;
+    else if (detector.punctuator_detector.status == TRUE) token->type = PUNCTUATOR;
+    else if (detector.single_char_detector.status == TRUE) token->type = SINGLE_CHAR;
+    else {
+        preprocessor_error(0, 0, 0, "momento de bruh");
+    }
 }
 
 static bool token_is_str(struct preprocessing_token token, const char *str) {
@@ -598,7 +602,7 @@ pp_token_vec get_pp_tokens(struct lines lines) {
     pp_token_vec_init(&result, 0);
 
     for (size_t ln_i = 0; ln_i < lines.n_lines; ln_i++) {
-        struct preprocessing_token token = {.type = 0};
+        struct preprocessing_token token = {.possible_types = 0};
         for (size_t char_i = 0; char_i < lines.lines[ln_i].n_chars; char_i++) {
             const char *c = &lines.lines[ln_i].chars[char_i];
             comment_detector = detect_comment(comment_detector, *c);
@@ -612,6 +616,13 @@ pp_token_vec get_pp_tokens(struct lines lines) {
             if (comment_detector.status == IMPOSSIBLE) {
                 comment_detector = initial_comment_detector;
             }
+
+            if (!(result.n_elements >= 2
+                  && token_is_str(result.arr[result.n_elements-1], "include")
+                  && token_is_str(result.arr[result.n_elements-2], "#"))) {
+                detector.header_name_detector.status = IMPOSSIBLE;
+            }
+
             prev_detector = detector;
             detector = detect_preprocessing_token(detector, *c);
 
@@ -622,26 +633,16 @@ pp_token_vec get_pp_tokens(struct lines lines) {
             else if (detector.status == IMPOSSIBLE && detector.prev_status == TRUE) {
                 token.last = c-1;
                 add_type(&token, prev_detector);
-                if (!(result.n_elements >= 2
-                && token_is_str(result.arr[result.n_elements-1], "include")
-                && token_is_str(result.arr[result.n_elements-2], "#"))) {
-                    token.type &= ~HEADER_NAME_MASK;
-                }
                 pp_token_vec_append(&result, token);
-                token.type = 0;
+                token.possible_types = 0;
                 char_i--;
                 comment_detector = initial_comment_detector;
             }
             if (detector.status == TRUE && char_i == lines.lines[ln_i].n_chars-1) {
                 token.last = c;
                 add_type(&token, detector);
-                if (!(result.n_elements >= 2
-                      && token_is_str(result.arr[result.n_elements-1], "include")
-                      && token_is_str(result.arr[result.n_elements-2], "#"))) {
-                    token.type &= ~HEADER_NAME_MASK;
-                }
                 pp_token_vec_append(&result, token);
-                token.type = 0;
+                token.possible_types = 0;
             }
             if (detector.status == IMPOSSIBLE) detector = initial_detector;
         }

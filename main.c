@@ -66,13 +66,13 @@ int main(int argc, char *argv[]) {
             it++;
         }
         printf (" (");
-        if (token.type & HEADER_NAME_MASK) printf("header name,");
-        if (token.type & IDENTIFIER_MASK) printf("identifier,");
-        if (token.type & PP_NUMBER_MASK) printf("preprocessing number,");
-        if (token.type & CHARACTER_CONSTANT_MASK) printf("character constant,");
-        if (token.type & STRING_LITERAL_MASK) printf("string literal,");
-        if (token.type & PUNCTUATOR_MASK) printf("punctuator,");
-        if (token.type & SINGLE_CHAR_MASK) printf("single character,");
+        if (token.type == HEADER_NAME) printf("header name");
+        else if (token.type == IDENTIFIER) printf("identifier");
+        else if (token.type == PP_NUMBER) printf("preprocessing number");
+        else if (token.type == CHARACTER_CONSTANT) printf("character constant");
+        else if (token.type == STRING_LITERAL) printf("string literal");
+        else if (token.type == PUNCTUATOR) printf("punctuator");
+        else if (token.type == SINGLE_CHAR) printf("single character");
         printf(")\n");
     }
 

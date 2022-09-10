@@ -135,7 +135,10 @@ struct preprocessing_token_detector detect_preprocessing_token(struct preprocess
 typedef struct preprocessing_token {
     const char *first;
     const char *last;
-    unsigned char type;
+    unsigned char possible_types;
+    enum {
+        HEADER_NAME, IDENTIFIER, PP_NUMBER, CHARACTER_CONSTANT, STRING_LITERAL, PUNCTUATOR, SINGLE_CHAR
+    } type;
 } pp_token;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(pp_token)
 
