@@ -19,7 +19,7 @@ static bool is_trigraph(const char *trigraph) {
 struct lines replace_trigraphs(struct lines input) {
 
     size_t n_trigraphs = 0;
-    for (size_t i = 0; i < input.n_chars; i++) {
+    for (size_t i = 0; i+2 < input.n_chars; i++) {
         if (is_trigraph(&input.chars[i])) n_trigraphs++;
     }
     if (n_trigraphs == 0) return input;
