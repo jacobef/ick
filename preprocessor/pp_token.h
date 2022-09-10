@@ -126,13 +126,6 @@ struct preprocessing_token_detector {
 
 struct preprocessing_token_detector detect_preprocessing_token(struct preprocessing_token_detector detector, char c);
 
-#define HEADER_NAME_MASK        0x40
-#define IDENTIFIER_MASK         0x20
-#define PP_NUMBER_MASK          0x10
-#define CHARACTER_CONSTANT_MASK 0x8
-#define STRING_LITERAL_MASK     0x4
-#define PUNCTUATOR_MASK         0x2
-#define SINGLE_CHAR_MASK        0x1
 typedef struct preprocessing_token {
     const char *first;
     const char *last;
