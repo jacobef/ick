@@ -86,7 +86,8 @@ struct char_const_str_literal_detector {
     bool in_literal;
     bool looking_for_esc_seq;
     bool is_first_char;
-    char prev_char; // lazy temporary solution for avoiding '' / "" and L'' / L""
+    bool just_opened;
+    char prev_char;
 };
 
 struct char_const_str_literal_detector detect_character_constant(struct char_const_str_literal_detector detector, char c);

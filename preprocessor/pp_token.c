@@ -268,6 +268,8 @@ struct escape_sequence_detector detect_escape_sequence(struct escape_sequence_de
 }
 
 static struct char_const_str_literal_detector detect_char_const_str_literal(struct char_const_str_literal_detector detector, char quote, char c) {
+    if (detector.just_opened) detector.just_opened = false;
+
     detector.prev_status = detector.status;
 
     if (detector.status == TRUE) {
@@ -293,6 +295,7 @@ static struct char_const_str_literal_detector detect_char_const_str_literal(stru
     else if (detector.looking_for_open_quote && c == quote) {
         detector.in_literal = true;
         detector.looking_for_open_quote = false;
+        detector.just_opened = true;
     }
     else if (detector.is_first_char) {
         detector.status = IMPOSSIBLE;
@@ -305,16 +308,16 @@ static struct char_const_str_literal_detector detect_char_const_str_literal(stru
     else if (detector.in_literal && !detector.looking_for_esc_seq && !in_src_char_set(c)) {
         detector.status = IMPOSSIBLE;
     }
-    else if (c == quote && detector.looking_for_esc_seq && detector.esc_seq_detector.status == TRUE) {
+    else if (c == quote && detector.prev_char != '\\' && detector.looking_for_esc_seq && detector.esc_seq_detector.status == TRUE) {
         detector.status = TRUE;
     }
-    else if (c == quote && detector.looking_for_esc_seq) {
+    else if (c == quote && detector.prev_char != '\\' && detector.looking_for_esc_seq) {
         detector.status = IMPOSSIBLE;
     }
-    else if (c == quote && !detector.is_first_char && detector.prev_char == quote && quote == '\'') {
+    else if (c == '\'' && detector.prev_char != '\\' && !detector.is_first_char && detector.just_opened) {
         detector.status = IMPOSSIBLE;
     }
-    else if (c == quote) {
+    else if (c == quote && detector.prev_char != '\\') {
         detector.status = TRUE;
     }
 
@@ -574,7 +577,7 @@ pp_token_vec get_pp_tokens(struct lines lines) {
     struct universal_character_name_detector initial_ucnd =
             {.status=POSSIBLE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false};
     struct char_const_str_literal_detector initial_ccsld = {.status=POSSIBLE, .looking_for_open_quote=true, .in_literal=false,
-            .prev_esc_seq_status=POSSIBLE, .is_first_char=true,
+            .prev_esc_seq_status=POSSIBLE, .is_first_char=true, .just_opened=false,
             .esc_seq_detector={.status=POSSIBLE, .looking_for_hex=false, .looking_for_octal=false,
                     .next_char_invalid=false,.is_first_char=true, .is_second_char=false,
                     .n_octals=0, .ucn_detector=initial_ucnd}};
