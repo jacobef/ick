@@ -4,6 +4,6 @@
 #include "lines.h"
 #include <stddef.h>
 
-struct lines replace_trigraphs(struct lines input);
+struct chars replace_trigraphs(struct chars input);
 
 #endif //ICK_TRIGRAPHS_H

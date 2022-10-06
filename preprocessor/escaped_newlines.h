@@ -3,6 +3,6 @@
 
 #include "lines.h"
 
-struct lines rm_escaped_newlines(struct lines input);
+struct chars rm_escaped_newlines(struct chars input);
 
 #endif //TEST_ESCAPED_NEWLINES_H

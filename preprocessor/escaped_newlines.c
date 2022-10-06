@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include "escaped_newlines.h"
 
-struct lines rm_escaped_newlines(struct lines input) {
+struct chars rm_escaped_newlines(struct chars input) {
     if (input.n_chars < 2) return input;
     char *output_chars = malloc(input.n_chars);
     const char *reader = input.chars;
@@ -19,5 +19,5 @@ struct lines rm_escaped_newlines(struct lines input) {
     for (; reader != input.chars + input.n_chars; writer++, reader++) {
         *writer = *reader;
     }
-    return get_lines(output_chars, writer-output_chars);
+    return (struct chars){.chars = output_chars, .n_chars = writer-output_chars};
 }

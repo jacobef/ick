@@ -1,6 +1,5 @@
 #include <stdio.h>
 
-int main(void) {
-    printf("hello, preprocessing // /*tokenization*/\n");
-    return 0;
+int main() {
+    printf("hello, world!\n");
 }

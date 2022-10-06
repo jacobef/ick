@@ -4,13 +4,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "data_structures/vector.h"
+#include "data_structures/trie.h"
 #include "lines.h"
+#include "detector.h"
 
-enum detection_status {
-    IMPOSSIBLE,
-    POSSIBLE,
-    TRUE
-};
 
 struct header_name_detector {
     enum detection_status status;
@@ -95,15 +92,24 @@ struct char_const_str_literal_detector detect_character_constant(struct char_con
 struct char_const_str_literal_detector detect_string_literal(struct char_const_str_literal_detector detector, char c);
 
 struct punctuator_detector {
+    struct trie *place_in_trie;
     enum detection_status status;
-    enum detection_status prev_status;
-    char next_char_options[4];
-    unsigned char char_n;
-    unsigned char n_next_char_options;
-    char prev_char;
+    bool is_first_char;
 };
 
 struct punctuator_detector detect_punctuator(struct punctuator_detector detector, char c);
+
+struct comment_detector {
+    enum detection_status status;
+    enum detection_status prev_status;
+    bool is_multiline;
+    bool is_first_char;
+    bool is_second_char;
+    bool next_char_invalid;
+    char prev_char;
+};
+
+struct comment_detector detect_comment(struct comment_detector detector, char c);
 
 struct single_char_detector {
     enum detection_status status;
@@ -130,24 +136,192 @@ typedef struct preprocessing_token {
     const char *first;
     const char *last;
     enum {
-        HEADER_NAME, IDENTIFIER, PP_NUMBER, CHARACTER_CONSTANT, STRING_LITERAL, PUNCTUATOR, SINGLE_CHAR
+        HEADER_NAME, IDENTIFIER, PP_NUMBER, CHARACTER_CONSTANT, HEADER_NAME_OR_STRING_LITERAL, PUNCTUATOR, SINGLE_CHAR
     } type;
 } pp_token;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(pp_token)
 
-struct comment_detector {
-    enum detection_status status;
-    enum detection_status prev_status;
-    bool is_multiline;
-    bool is_first_char;
-    bool is_second_char;
-    bool next_char_invalid;
-    char prev_char;
+pp_token_vec get_pp_tokens(struct chars input);
+
+static struct trie punctuators_trie = {
+    .n_children = 23, .children = (struct trie[]) {
+        (struct trie) {
+            .val = '(', .match = true, .n_children = 0
+        },
+        (struct trie) {
+            .val = ')', .match = true, .n_children = 0
+        },
+        (struct trie) {
+            .val = '[', .match = true, .n_children = 0
+        },
+        (struct trie) {
+            .val = ']', .match = true, .n_children = 0
+        },
+        (struct trie) {
+                .val = '{', .match = true, .n_children = 0
+        },
+        (struct trie) {
+                .val = '}', .match = true, .n_children = 0
+        },
+        (struct trie) {
+            .val = '.', .match = true, .n_children = 1, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '.', .match = false, .n_children = 1, .children =(struct trie[]) {
+                        (struct trie) {
+                            .val = '.', .match = true, .n_children = 0
+                        }
+                    }
+                }
+            }
+        },
+        // - -> -= --
+        (struct trie) {
+            .val = '-', .match = true, .n_children = 3, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '>', .match = true, .n_children = 0
+                },
+                (struct trie) {
+                    .val = '=', .match = true, .n_children = 0
+                },
+                (struct trie) {
+                    .val = '-', .match = true, .n_children = 0
+                }
+            }
+        },
+        // + += ++
+        (struct trie) {
+            .val = '+', .match = true, .n_children = 2, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '=', .match = true, .n_children = 0
+                },
+                (struct trie) {
+                    .val = '+', .match = true, .n_children = 0
+                }
+            }
+        },
+        // & && &=
+        (struct trie) {
+            .val = '&', .match = true, .n_children = 2, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '&', .match = true, .n_children = 0
+                },
+                (struct trie) {
+                    .val = '=', .match = true, .n_children = 0
+                }
+            }
+        },
+        // * *=
+        (struct trie) {
+            .val = '*', .match = true, .n_children = 1, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '=', .match = true, .n_children = 0
+                }
+            }
+        },
+        (struct trie) {
+            .val = '~', .match = true, .n_children = 0
+        },
+        (struct trie) {
+            .val = '!', .match = true, .n_children = 0
+        },
+        (struct trie) {
+            .val = '\\', .match = true, .n_children = 0
+        },
+        // % %> %: %:%:
+        (struct trie) {
+            .val = '%', .match = true, .n_children = 3, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '>', .match = true, .n_children = 0
+                },
+                (struct trie) {
+                    .val = ':', .match = true, .n_children = 1, .children = (struct trie[]) {
+                        (struct trie) {
+                            .val = '%', .match = false, .n_children = 1, .children = (struct trie[]) {
+                                (struct trie) {
+                                    .val = ':', .match = true, .n_children = 0
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        // < << <= <: <% <<=
+        (struct trie) {
+            .val = '<', .match = true, .n_children = 4, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '<', .match = true, .n_children = 1, .children = (struct trie[]) {
+                        (struct trie) {
+                            .val = '=', .match = true, .n_children = 0
+                        }
+                    }
+                },
+                (struct trie) {
+                    .val = '=', .match = true, .n_children = 0
+                },
+                (struct trie) {
+                    .val = ':', .match = true, .n_children = 0
+                },
+                (struct trie) {
+                    .val = '%', .match = true, .n_children = 0
+                }
+            }
+        },
+        // > >> >= >>=
+        (struct trie) {
+            .val = '>', .match = true, .n_children = 2, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '>', .match = true, .n_children = 1, .children = (struct trie[]) {
+                        (struct trie) {
+                            .val = '=', .match = true, .n_children = 0
+                        }
+                    }
+                },
+                (struct trie) {
+                    .val = '=', .match = true, .n_children = 0
+                },
+            }
+        },
+        // ^ ^=
+        (struct trie) {
+            .val = '^', .match = true, .n_children = 1, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '=', .match = true, .n_children = 0
+                }
+            }
+        },
+        // | |=
+        (struct trie) {
+            .val = '|', .match = true, .n_children = 1, .children = (struct trie[]) {
+                (struct trie) {
+                        .val = '=', .match = true, .n_children = 0
+                }
+            }
+        },
+        (struct trie) {
+            .val = '?', .match = true, .n_children = 0
+        },
+        // : :>
+        (struct trie) {
+            .val = ':', .match = true, .n_children = 1, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '>', .match = true, .n_children = 0
+                }
+            }
+        },
+        (struct trie) {
+            .val = ',', .match = true, .n_children = 0
+        },
+        // # ##
+        (struct trie) {
+            .val = '#', .match = true, .n_children = 1, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '#', .match = true, .n_children = 0
+                }
+            }
+        }
+    }
 };
-
-struct comment_detector detect_comment(struct comment_detector detector, char c);
-
-pp_token_vec get_pp_tokens(struct lines lines);
 
 
 

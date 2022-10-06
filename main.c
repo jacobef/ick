@@ -1,13 +1,11 @@
 #include <stdio.h>
 #include <string.h>
-#include <limits.h>
 #include "data_structures/vector.h"
 #include "driver/file_utils.h"
 #include "driver/diagnostics.h"
 #include "preprocessor/lines.h"
 #include "preprocessor/trigraphs.h"
 #include "preprocessor/escaped_newlines.h"
-#include "preprocessor/diagnostics.h"
 #include "preprocessor/pp_token.h"
 
 char *ick_progname;
@@ -46,23 +44,37 @@ int main(int argc, char *argv[]) {
     free(output_fname);
 
     long input_len = get_filesize_then_rewind(input_file);
-    char *input_chars = malloc(input_len);
+    char *input_chars = malloc(input_len+1);
     fread(input_chars, sizeof(char), input_len, input_file);
     fclose(input_file);
+    input_chars[input_len] = '\n'; // too much of a pain without this
 
-    struct lines source_lines = get_lines(input_chars, input_len);
-    struct lines trigraphs_replaced = replace_trigraphs(source_lines);
-    struct lines logical_lines = rm_escaped_newlines(trigraphs_replaced);
+    struct chars trigraphs_replaced = replace_trigraphs(
+            (struct chars){ .chars = input_chars, .n_chars = input_len + 1 }
+            );
+    struct chars logical_lines = rm_escaped_newlines(trigraphs_replaced);
     fwrite(logical_lines.chars, sizeof(char), logical_lines.n_chars, output_file);
 
     fclose(output_file);
 
-    pp_token_vec hi = get_pp_tokens(logical_lines);
-    for (size_t i = 0; i < hi.n_elements; i++) {
-        struct preprocessing_token token = hi.arr[i];
+    pp_token_vec pp_tokens = get_pp_tokens(logical_lines);
+    for (size_t i = 0; i < pp_tokens.n_elements; i++) {
+        struct preprocessing_token token = pp_tokens.arr[i];
         const char *it = token.first;
         while (it != token.last+1) {
-            printf("%c", *it);
+            switch(*it) {
+                case ' ':
+                    printf("[space]");
+                    break;
+                case '\t':
+                    printf("[tab]");
+                    break;
+                case '\n':
+                    printf("[newline]");
+                    break;
+                default:
+                    printf("%c", *it);
+            }
             it++;
         }
         printf (" (");
@@ -70,13 +82,16 @@ int main(int argc, char *argv[]) {
         else if (token.type == IDENTIFIER) printf("identifier");
         else if (token.type == PP_NUMBER) printf("preprocessing number");
         else if (token.type == CHARACTER_CONSTANT) printf("character constant");
-        else if (token.type == STRING_LITERAL) printf("string literal");
+        else if (token.type == HEADER_NAME_OR_STRING_LITERAL) printf("header name or string literal");
         else if (token.type == PUNCTUATOR) printf("punctuator");
         else if (token.type == SINGLE_CHAR) printf("single character");
-        printf(")\n");
+        printf(") ");
+        printf("\n");
     }
 
-    free(source_lines.chars);
-    if (source_lines.chars != trigraphs_replaced.chars) free(trigraphs_replaced.chars);
+    pp_token_vec_free_internals(&pp_tokens);
+    free(input_chars);
+    free(trigraphs_replaced.chars);
+    free(logical_lines.chars);
     free(ick_progname);
 }
