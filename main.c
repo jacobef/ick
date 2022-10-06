@@ -7,6 +7,7 @@
 #include "preprocessor/trigraphs.h"
 #include "preprocessor/escaped_newlines.h"
 #include "preprocessor/pp_token.h"
+#include "preprocessor/pp_directive.h"
 
 char *ick_progname;
 
