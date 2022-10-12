@@ -29,7 +29,7 @@ struct universal_character_name_detector {
 
 struct universal_character_name_detector detect_universal_character_name(struct universal_character_name_detector detector, char c);
 
-static const struct universal_character_name_detector initial_ucn_detector = {.status=POSSIBLE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false};
+static const struct universal_character_name_detector initial_ucn_detector = {.status=INCOMPLETE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false};
 
 struct identifier_detector {
     struct universal_character_name_detector ucn_detector;
@@ -68,9 +68,9 @@ struct escape_sequence_detector {
 };
 
 static const struct escape_sequence_detector initial_esc_seq_detector = {
-        .status=POSSIBLE, .looking_for_hex=false, .looking_for_octal=false, .next_char_invalid=false, .n_octals=0,
+        .status=INCOMPLETE, .looking_for_hex=false, .looking_for_octal=false, .next_char_invalid=false, .n_octals=0,
         .is_first_char=true, .is_second_char=false,
-        .ucn_detector={.status=POSSIBLE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false}};
+        .ucn_detector={.status=INCOMPLETE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false}};
 
 struct escape_sequence_detector detect_escape_sequence(struct escape_sequence_detector detector, char c);
 

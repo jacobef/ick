@@ -130,7 +130,7 @@ struct pp_number_detector detect_pp_number(struct pp_number_detector detector, c
     }
     else if (detector.is_first_char && c == '.') {
         detector.looking_for_digit = true;
-        detector.status = POSSIBLE;
+        detector.status = INCOMPLETE;
     }
     else if (detector.is_first_char) {
         detector.status = IMPOSSIBLE;
@@ -152,11 +152,11 @@ struct pp_number_detector detect_pp_number(struct pp_number_detector detector, c
     else if (detector.status == MATCH) {
         if (c == 'e' || c == 'E' || c == 'p' || c == 'P') {
             detector.looking_for_sign = true;
-            detector.status = POSSIBLE;
+            detector.status = INCOMPLETE;
         }
         else if (c == '\\') {
             detector.looking_for_ucn = true;
-            detector.status = POSSIBLE;
+            detector.status = INCOMPLETE;
         }
         else if (!(isalpha(c) || c == '_' || isdigit(c) || c == '.'))  {
             detector.status = IMPOSSIBLE;
@@ -323,7 +323,7 @@ struct punctuator_detector detect_punctuator(struct punctuator_detector detector
     }
     else {
         if (next_place_in_trie->match) detector.status = MATCH;
-        else detector.status = POSSIBLE;
+        else detector.status = INCOMPLETE;
         detector.place_in_trie = next_place_in_trie;
     }
     return detector;
@@ -357,11 +357,11 @@ struct preprocessing_token_detector detect_preprocessing_token(struct preprocess
         || detector.single_char_detector.status == MATCH) {
         detector.status = MATCH;
     }
-    else if (detector.header_name_detector.status == POSSIBLE || detector.identifier_detector.status == POSSIBLE
-             || detector.pp_number_detector.status == POSSIBLE || detector.character_constant_detector.status == POSSIBLE
-             || detector.string_literal_detector.status == POSSIBLE || detector.punctuator_detector.status == POSSIBLE
-             || detector.single_char_detector.status == POSSIBLE) {
-        detector.status = POSSIBLE;
+    else if (detector.header_name_detector.status == INCOMPLETE || detector.identifier_detector.status == INCOMPLETE
+             || detector.pp_number_detector.status == INCOMPLETE || detector.character_constant_detector.status == INCOMPLETE
+             || detector.string_literal_detector.status == INCOMPLETE || detector.punctuator_detector.status == INCOMPLETE
+             || detector.single_char_detector.status == INCOMPLETE) {
+        detector.status = INCOMPLETE;
     }
     else {
         detector.status = IMPOSSIBLE;
@@ -431,29 +431,29 @@ void add_type(struct preprocessing_token *token, struct preprocessing_token_dete
 
 pp_token_vec get_pp_tokens(struct chars input) {
     static struct universal_character_name_detector initial_ucnd =
-            {.status=POSSIBLE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false};
-    struct char_const_str_literal_detector initial_ccsld = {.status=POSSIBLE, .looking_for_open_quote=true, .in_literal=false,
-            .prev_esc_seq_status=POSSIBLE, .is_first_char=true, .just_opened=false,
-            .esc_seq_detector={.status=POSSIBLE, .looking_for_hex=false, .looking_for_octal=false,
+            {.status=INCOMPLETE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false};
+    struct char_const_str_literal_detector initial_ccsld = {.status=INCOMPLETE, .looking_for_open_quote=true, .in_literal=false,
+            .prev_esc_seq_status=INCOMPLETE, .is_first_char=true, .just_opened=false,
+            .esc_seq_detector={.status=INCOMPLETE, .looking_for_hex=false, .looking_for_octal=false,
                     .next_char_invalid=false,.is_first_char=true, .is_second_char=false,
                     .n_octals=0, .ucn_detector=initial_ucnd}};
     struct preprocessing_token_detector initial_detector = {
-            .status=POSSIBLE,
-            .prev_status=POSSIBLE,
-            .header_name_detector={.status=POSSIBLE, .is_first_char=true},
-            .identifier_detector={.is_first_char=true, .status=POSSIBLE, .ucn_detector=initial_ucnd},
-            .pp_number_detector={.status=POSSIBLE, .looking_for_digit=false, .looking_for_ucn=false,
+            .status=INCOMPLETE,
+            .prev_status=INCOMPLETE,
+            .header_name_detector={.status=INCOMPLETE, .is_first_char=true},
+            .identifier_detector={.is_first_char=true, .status=INCOMPLETE, .ucn_detector=initial_ucnd},
+            .pp_number_detector={.status=INCOMPLETE, .looking_for_digit=false, .looking_for_ucn=false,
                                  .looking_for_sign=false, .is_first_char=true,.ucn_detector=initial_ucnd},
             .character_constant_detector=initial_ccsld,
             .string_literal_detector=initial_ccsld,
-            .punctuator_detector={.status=POSSIBLE, .is_first_char=true, .place_in_trie=&punctuators_trie},
-            .single_char_detector={.status=POSSIBLE},
+            .punctuator_detector={.status=INCOMPLETE, .is_first_char=true, .place_in_trie=&punctuators_trie},
+            .single_char_detector={.status=INCOMPLETE},
             .is_first_char=true,
             .was_first_char=false
     };
     struct preprocessing_token_detector detector = initial_detector;
     struct preprocessing_token_detector prev_detector;
-    struct comment_detector initial_comment_detector = {.status = POSSIBLE, .is_first_char=true, .is_second_char=false,
+    struct comment_detector initial_comment_detector = {.status = INCOMPLETE, .is_first_char=true, .is_second_char=false,
             .next_char_invalid=false};
     struct comment_detector comment_detector = initial_comment_detector;
 
@@ -485,7 +485,7 @@ pp_token_vec get_pp_tokens(struct chars input) {
         prev_detector = detector;
         detector = detect_preprocessing_token(detector, *c);
 
-        if ((detector.status == POSSIBLE || detector.status == MATCH) && (detector.was_first_char || detector.prev_status == IMPOSSIBLE)) {
+        if ((detector.status == INCOMPLETE || detector.status == MATCH) && (detector.was_first_char || detector.prev_status == IMPOSSIBLE)) {
             token.first = c;
         }
         else if (detector.status == IMPOSSIBLE && detector.prev_status == MATCH) {
