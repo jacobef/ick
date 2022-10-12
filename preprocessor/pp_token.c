@@ -334,6 +334,8 @@ struct single_char_detector detect_single_char(struct single_char_detector detec
 
     if (detector.status == IMPOSSIBLE) return detector;
     else if (detector.status == MATCH) detector.status = IMPOSSIBLE;
+    // newlines aren't actually tokens but they're significant in phase 4, so it's easier to treat them as tokens
+    else if (isspace(c) && c != '\n') detector.status = IMPOSSIBLE;
     else detector.status = MATCH;
     return detector;
 }
@@ -449,19 +451,23 @@ pp_token_vec get_pp_tokens(struct chars input) {
             .punctuator_detector={.status=POSSIBLE, .is_first_char=true, .place_in_trie=&punctuators_trie},
             .single_char_detector={.status=POSSIBLE},
             .is_first_char=true,
-            .was_first_char=false
+            .was_first_char=false,
     };
-    struct preprocessing_token_detector detector = initial_detector;
-    struct preprocessing_token_detector prev_detector;
-    struct comment_detector initial_comment_detector = {.status = POSSIBLE, .is_first_char=true, .is_second_char=false,
-            .next_char_invalid=false};
-    struct comment_detector comment_detector = initial_comment_detector;
 
     pp_token_vec result;
     pp_token_vec_init(&result, 0);
 
+    bool match_exists = false;
+
+    struct preprocessing_token_detector detector = initial_detector;
+    struct preprocessing_token_detector detector_at_most_recent_match;
+    struct comment_detector initial_comment_detector = {.status = POSSIBLE, .is_first_char=true, .is_second_char=false,
+            .next_char_invalid=false};
+    struct comment_detector comment_detector = initial_comment_detector;
+
     struct preprocessing_token initial_token = { 0 };
     struct preprocessing_token token = initial_token;
+    struct preprocessing_token token_at_most_recent_match;
     for (const char *c = input.chars; c != input.chars + input.n_chars; c++) {
         comment_detector = detect_comment(comment_detector, *c);
         if (detector.string_literal_detector.in_literal || detector.character_constant_detector.in_literal) {
@@ -472,29 +478,31 @@ pp_token_vec get_pp_tokens(struct chars input) {
         }
         else if (comment_detector.status == IMPOSSIBLE && comment_detector.prev_status == MATCH) {
             detector = initial_detector;
-            char *space = " ";
-            pp_token_vec_append(&result, (struct preprocessing_token) {
-                // feels sketchy but should be ok because string literals have static storage duration
-                .type=SINGLE_CHAR, .first=space, .last=space
-            });
         }
         if (comment_detector.status == IMPOSSIBLE) {
             comment_detector = initial_comment_detector;
         }
 
-        prev_detector = detector;
         detector = detect_preprocessing_token(detector, *c);
-
         if ((detector.status == POSSIBLE || detector.status == MATCH) && (detector.was_first_char || detector.prev_status == IMPOSSIBLE)) {
             token.first = c;
+            if (c != input.chars && isspace(*(c-1))) token.after_whitespace = true;
+            else token.after_whitespace = false;
         }
-        else if (detector.status == IMPOSSIBLE && detector.prev_status == MATCH) {
-            c--; // TODO explain this line
+        if (detector.status == MATCH) {
+            match_exists = true;
             token.last = c;
-            add_type(&token, prev_detector);
-            pp_token_vec_append(&result, token);
+            token_at_most_recent_match = token;
+            detector_at_most_recent_match = detector;
+        }
+        if (detector.status == IMPOSSIBLE && match_exists) {
+            add_type(&token_at_most_recent_match, detector_at_most_recent_match);
+            pp_token_vec_append(&result, token_at_most_recent_match);
             token = initial_token;
+            detector = initial_detector;
             comment_detector = initial_comment_detector;
+            match_exists = false;
+            c = token_at_most_recent_match.last;
         }
         if (detector.status == IMPOSSIBLE) detector = initial_detector;
     }

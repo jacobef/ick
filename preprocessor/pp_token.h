@@ -116,6 +116,15 @@ struct single_char_detector {
     enum detection_status prev_status;
 };
 
+struct preprocessing_token {
+    const char *first;
+    const char *last;
+    enum {
+        HEADER_NAME, IDENTIFIER, PP_NUMBER, CHARACTER_CONSTANT, HEADER_NAME_OR_STRING_LITERAL, PUNCTUATOR, SINGLE_CHAR
+    } type;
+    bool after_whitespace;
+};
+
 struct preprocessing_token_detector {
     struct header_name_detector header_name_detector;
     struct identifier_detector identifier_detector;
@@ -132,15 +141,8 @@ struct preprocessing_token_detector {
 
 struct preprocessing_token_detector detect_preprocessing_token(struct preprocessing_token_detector detector, char c);
 
-typedef struct preprocessing_token {
-    const char *first;
-    const char *last;
-    enum {
-        HEADER_NAME, IDENTIFIER, PP_NUMBER, CHARACTER_CONSTANT, HEADER_NAME_OR_STRING_LITERAL, PUNCTUATOR, SINGLE_CHAR
-    } type;
-} pp_token;
+typedef struct preprocessing_token pp_token;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(pp_token)
-
 pp_token_vec get_pp_tokens(struct chars input);
 
 static struct trie punctuators_trie = {
