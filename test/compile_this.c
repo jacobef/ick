@@ -1,6 +1,7 @@
-#include <stdio.h>
+#include "stdio.h"
+#include <stdlib.h>
 
-int main() {
+int main(void) {
     // single-line comment test
     /* multi
        line
@@ -15,5 +16,5 @@ int main() {
 \ % << >> < > <= >= == != ^ | && ||
 ? : ; ... ,
 = *= /= %= += -= <<= >>= &= ^= |=
- # ##
+# ##
 <: :> <% %> %: %:%:

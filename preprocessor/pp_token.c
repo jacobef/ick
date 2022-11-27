@@ -421,6 +421,13 @@ void add_type(struct preprocessing_token *token, struct preprocessing_token_dete
     }
 }
 
+static bool token_is_str(struct preprocessing_token token, const char *str) {
+    for (const char *tok_it = token.first, *str_it = str; tok_it != token.last+1 && *str_it; tok_it++, str_it++) {
+        if (*tok_it != *str_it) return false;
+    }
+    return true;
+}
+
 pp_token_vec get_pp_tokens(struct chars input) {
     static struct universal_character_name_detector initial_ucnd =
             {.status=POSSIBLE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false};
@@ -472,7 +479,14 @@ pp_token_vec get_pp_tokens(struct chars input) {
         if (comment_detector.status == IMPOSSIBLE) {
             comment_detector = initial_comment_detector;
         }
-
+        if (result.n_elements >= 2
+            && token_is_str(result.arr[result.n_elements-2], "#")
+            && token_is_str(result.arr[result.n_elements-1], "include")) {
+            token_detector.string_literal_detector.status = IMPOSSIBLE;
+        }
+        else {
+            token_detector.header_name_detector.status = IMPOSSIBLE;
+        }
         token_detector = detect_preprocessing_token(token_detector, *c);
         if ((token_detector.status == POSSIBLE || token_detector.status == MATCH) && (token_detector.was_first_char || token_detector.prev_status == IMPOSSIBLE)) {
             token.first = c;
