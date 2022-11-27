@@ -6,6 +6,6 @@ project(ick C)
 
 set(CMAKE_C_STANDARD 99)
 string(APPEND CMAKE_EXE_LINKER_FLAGS "-fsanitize=address,undefined")
-add_compile_options(-Wall -Wextra -Wpedantic -O3 -g)
+add_compile_options(-Wall -Wextra -Wpedantic -O0 -g)
 add_executable(ick ${SOURCE_FILES} main.c)
 include_directories(.)

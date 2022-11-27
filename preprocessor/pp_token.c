@@ -304,16 +304,6 @@ struct char_const_str_literal_detector detect_string_literal(struct char_const_s
 }
 
 struct punctuator_detector detect_punctuator(struct punctuator_detector detector, char c) {
-    /*
-    punctuators:
-    "[", "]", "(", ")", "{", "}", ".", "->",
-    "++", "--", "&", "*", "+", "-", "~", "!",
-    "\\", "%", "<<", ">>", "<", ">", "<=", ">=", "==", "!=", "^", "|", "&&", "||",
-    "?", ":", ";", "...",
-    "=", "*=", "/=", "%=", "+=", "-=", "<<=", ">>=", "&=", "^=", "|=",
-    ",", "#", "##",
-    "<:", ":>", "<%", "%>", "%:", "%:%:"
-    */
 
     if (detector.status == IMPOSSIBLE) return detector;
 
@@ -419,7 +409,7 @@ struct comment_detector detect_comment(struct comment_detector detector, char c)
 }
 
 void add_type(struct preprocessing_token *token, struct preprocessing_token_detector detector) {
-    if (detector.string_literal_detector.status == MATCH) token->type = HEADER_NAME_OR_STRING_LITERAL;
+    if (detector.string_literal_detector.status == MATCH) token->type = STRING_LITERAL;
     else if (detector.header_name_detector.status == MATCH) token->type = HEADER_NAME;
     else if (detector.identifier_detector.status == MATCH) token->type = IDENTIFIER;
     else if (detector.pp_number_detector.status == MATCH) token->type = PP_NUMBER;
@@ -459,7 +449,7 @@ pp_token_vec get_pp_tokens(struct chars input) {
 
     bool match_exists = false;
 
-    struct preprocessing_token_detector detector = initial_detector;
+    struct preprocessing_token_detector token_detector = initial_detector;
     struct preprocessing_token_detector detector_at_most_recent_match;
     struct comment_detector initial_comment_detector = {.status = POSSIBLE, .is_first_char=true, .is_second_char=false,
             .next_char_invalid=false};
@@ -470,41 +460,41 @@ pp_token_vec get_pp_tokens(struct chars input) {
     struct preprocessing_token token_at_most_recent_match;
     for (const char *c = input.chars; c != input.chars + input.n_chars; c++) {
         comment_detector = detect_comment(comment_detector, *c);
-        if (detector.string_literal_detector.in_literal || detector.character_constant_detector.in_literal) {
+        if (token_detector.string_literal_detector.in_literal || token_detector.character_constant_detector.in_literal) {
             comment_detector.status = IMPOSSIBLE;
         }
         else if (comment_detector.status == MATCH) {
             continue;
         }
         else if (comment_detector.status == IMPOSSIBLE && comment_detector.prev_status == MATCH) {
-            detector = initial_detector;
+            token_detector = initial_detector;
         }
         if (comment_detector.status == IMPOSSIBLE) {
             comment_detector = initial_comment_detector;
         }
 
-        detector = detect_preprocessing_token(detector, *c);
-        if ((detector.status == POSSIBLE || detector.status == MATCH) && (detector.was_first_char || detector.prev_status == IMPOSSIBLE)) {
+        token_detector = detect_preprocessing_token(token_detector, *c);
+        if ((token_detector.status == POSSIBLE || token_detector.status == MATCH) && (token_detector.was_first_char || token_detector.prev_status == IMPOSSIBLE)) {
             token.first = c;
             if (c != input.chars && isspace(*(c-1))) token.after_whitespace = true;
             else token.after_whitespace = false;
         }
-        if (detector.status == MATCH) {
+        if (token_detector.status == MATCH) {
             match_exists = true;
             token.last = c;
             token_at_most_recent_match = token;
-            detector_at_most_recent_match = detector;
+            detector_at_most_recent_match = token_detector;
         }
-        if (detector.status == IMPOSSIBLE && match_exists) {
+        if (token_detector.status == IMPOSSIBLE && match_exists) {
             add_type(&token_at_most_recent_match, detector_at_most_recent_match);
             pp_token_vec_append(&result, token_at_most_recent_match);
             token = initial_token;
-            detector = initial_detector;
+            token_detector = initial_detector;
             comment_detector = initial_comment_detector;
             match_exists = false;
             c = token_at_most_recent_match.last;
         }
-        if (detector.status == IMPOSSIBLE) detector = initial_detector;
+        if (token_detector.status == IMPOSSIBLE) token_detector = initial_detector;
     }
 
     return result;

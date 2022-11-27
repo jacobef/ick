@@ -63,6 +63,13 @@ int main(int argc, char *argv[]) {
         const char *it = token.first;
         while (it != token.last+1) {
             switch(*it) {
+                case ' ':
+                    if (token.last-token.first == 0) printf("[space]");
+                    else printf(" ");
+                    break;
+                case '\t':
+                    printf("[tab]");
+                    break;
                 case '\n':
                     printf("[newline]");
                     break;
@@ -76,7 +83,7 @@ int main(int argc, char *argv[]) {
         else if (token.type == IDENTIFIER) printf("identifier");
         else if (token.type == PP_NUMBER) printf("preprocessing number");
         else if (token.type == CHARACTER_CONSTANT) printf("character constant");
-        else if (token.type == HEADER_NAME_OR_STRING_LITERAL) printf("header name or string literal");
+        else if (token.type == STRING_LITERAL) printf("string literal");
         else if (token.type == PUNCTUATOR) printf("punctuator");
         else if (token.type == SINGLE_CHAR) printf("single character");
         printf(")");

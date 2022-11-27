@@ -120,7 +120,7 @@ struct preprocessing_token {
     const char *first;
     const char *last;
     enum {
-        HEADER_NAME, IDENTIFIER, PP_NUMBER, CHARACTER_CONSTANT, HEADER_NAME_OR_STRING_LITERAL, PUNCTUATOR, SINGLE_CHAR
+        HEADER_NAME, IDENTIFIER, PP_NUMBER, CHARACTER_CONSTANT, STRING_LITERAL, PUNCTUATOR, SINGLE_CHAR
     } type;
     bool after_whitespace;
 };
@@ -146,7 +146,17 @@ DEFINE_VEC_TYPE_AND_FUNCTIONS(pp_token)
 pp_token_vec get_pp_tokens(struct chars input);
 
 static struct trie punctuators_trie = {
-    .n_children = 23, .children = (struct trie[]) {
+    /*
+    punctuators:
+    "[", "]", "(", ")", "{", "}", ".", "->",
+    "++", "--", "&", "*", "+", "-", "~", "!",
+    "\\", "%", "<<", ">>", "<", ">", "<=", ">=", "==", "!=", "^", "|", "&&", "||",
+    "?", ":", ";", "...",
+    "=", "*=", "/=", "%=", "+=", "-=", "<<=", ">>=", "&=", "^=", "|=",
+    ",", "#", "##",
+    "<:", ":>", "<%", "%>", "%:", "%:%:"
+    */
+    .n_children = 25, .children = (struct trie[]) {
         (struct trie) {
             .val = '(', .match = true, .n_children = 0
         },
@@ -160,10 +170,10 @@ static struct trie punctuators_trie = {
             .val = ']', .match = true, .n_children = 0
         },
         (struct trie) {
-                .val = '{', .match = true, .n_children = 0
+            .val = '{', .match = true, .n_children = 0
         },
         (struct trie) {
-                .val = '}', .match = true, .n_children = 0
+            .val = '}', .match = true, .n_children = 0
         },
         (struct trie) {
             .val = '.', .match = true, .n_children = 1, .children = (struct trie[]) {
@@ -220,11 +230,23 @@ static struct trie punctuators_trie = {
                 }
             }
         },
+        // / /=
+        (struct trie) {
+            .val = '/', .match = true, .n_children = 1, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '=', .match = true, .n_children = 0
+                }
+            }
+        },
         (struct trie) {
             .val = '~', .match = true, .n_children = 0
         },
         (struct trie) {
-            .val = '!', .match = true, .n_children = 0
+            .val = '!', .match = true, .n_children = 1, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '=', .match = true, .n_children = 0
+                }
+            }
         },
         (struct trie) {
             .val = '\\', .match = true, .n_children = 0
@@ -284,6 +306,14 @@ static struct trie punctuators_trie = {
                 },
             }
         },
+        // = ==
+        (struct trie) {
+            .val = '=', .match = true, .n_children = 1, .children = (struct trie[]) {
+                (struct trie) {
+                    .val = '=', .match = true, .n_children = 0
+                }
+            }
+        },
         // ^ ^=
         (struct trie) {
             .val = '^', .match = true, .n_children = 1, .children = (struct trie[]) {
@@ -292,11 +322,14 @@ static struct trie punctuators_trie = {
                 }
             }
         },
-        // | |=
+        // | || |=
         (struct trie) {
-            .val = '|', .match = true, .n_children = 1, .children = (struct trie[]) {
+            .val = '|', .match = true, .n_children = 2, .children = (struct trie[]) {
                 (struct trie) {
-                        .val = '=', .match = true, .n_children = 0
+                    .val = '|', .match = true, .n_children = 0
+                },
+                (struct trie) {
+                    .val = '=', .match = true, .n_children = 0
                 }
             }
         },
