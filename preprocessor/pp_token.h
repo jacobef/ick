@@ -11,7 +11,6 @@
 
 struct header_name_detector {
     enum detection_status status;
-    enum detection_status prev_status;
     bool in_quotes;
     bool is_first_char;
 };
@@ -34,7 +33,6 @@ static const struct universal_character_name_detector initial_ucn_detector = {.s
 struct identifier_detector {
     struct universal_character_name_detector ucn_detector;
     enum detection_status status;
-    enum detection_status prev_status;
     bool looking_for_ucn;
     bool is_first_char;
 };
@@ -44,12 +42,10 @@ struct identifier_detector detect_identifier(struct identifier_detector detector
 struct pp_number_detector {
     struct universal_character_name_detector ucn_detector;
     enum detection_status status;
-    enum detection_status prev_status;
     bool looking_for_sign;
     bool looking_for_ucn;
     bool looking_for_digit;
     bool is_first_char;
-    bool next_char_invalid;
 };
 
 struct pp_number_detector detect_pp_number(struct pp_number_detector detector, char c);
@@ -57,7 +53,6 @@ struct pp_number_detector detect_pp_number(struct pp_number_detector detector, c
 struct escape_sequence_detector {
     struct universal_character_name_detector ucn_detector;
     enum detection_status status;
-    enum detection_status prev_status;
     bool is_first_char;
     bool is_second_char;
     bool looking_for_ucn;
@@ -77,7 +72,6 @@ struct escape_sequence_detector detect_escape_sequence(struct escape_sequence_de
 struct char_const_str_literal_detector {
     struct escape_sequence_detector esc_seq_detector;
     enum detection_status status;
-    enum detection_status prev_status;
     enum detection_status prev_esc_seq_status;
     bool looking_for_open_quote;
     bool in_literal;
@@ -94,7 +88,6 @@ struct char_const_str_literal_detector detect_string_literal(struct char_const_s
 struct punctuator_detector {
     struct trie *place_in_trie;
     enum detection_status status;
-    bool is_first_char;
 };
 
 struct punctuator_detector detect_punctuator(struct punctuator_detector detector, char c);
@@ -113,7 +106,6 @@ struct comment_detector detect_comment(struct comment_detector detector, char c)
 
 struct single_char_detector {
     enum detection_status status;
-    enum detection_status prev_status;
 };
 
 struct preprocessing_token {
@@ -150,13 +142,13 @@ static struct trie punctuators_trie = {
     punctuators:
     "[", "]", "(", ")", "{", "}", ".", "->",
     "++", "--", "&", "*", "+", "-", "~", "!",
-    "\\", "%", "<<", ">>", "<", ">", "<=", ">=", "==", "!=", "^", "|", "&&", "||",
+    "/", "%", "<<", ">>", "<", ">", "<=", ">=", "==", "!=", "^", "|", "&&", "||",
     "?", ":", ";", "...",
     "=", "*=", "/=", "%=", "+=", "-=", "<<=", ">>=", "&=", "^=", "|=",
     ",", "#", "##",
     "<:", ":>", "<%", "%>", "%:", "%:%:"
     */
-    .n_children = 25, .children = (struct trie[]) {
+    .n_children = 24, .children = (struct trie[]) {
         (struct trie) {
             .val = '(', .match = true, .n_children = 0
         },
@@ -230,14 +222,6 @@ static struct trie punctuators_trie = {
                 }
             }
         },
-        // / /=
-        (struct trie) {
-            .val = '/', .match = true, .n_children = 1, .children = (struct trie[]) {
-                (struct trie) {
-                    .val = '=', .match = true, .n_children = 0
-                }
-            }
-        },
         (struct trie) {
             .val = '~', .match = true, .n_children = 0
         },
@@ -248,8 +232,13 @@ static struct trie punctuators_trie = {
                 }
             }
         },
+        // / /=
         (struct trie) {
-            .val = '\\', .match = true, .n_children = 0
+                .val = '/', .match = true, .n_children = 1, .children = (struct trie[]) {
+                        (struct trie) {
+                                .val = '=', .match = true, .n_children = 0
+                        }
+                }
         },
         // % %> %: %:%:
         (struct trie) {

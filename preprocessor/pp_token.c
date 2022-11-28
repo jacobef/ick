@@ -16,8 +16,6 @@ static bool in_src_char_set(char c) {
 }
 
 struct header_name_detector detect_header_name(struct header_name_detector detector, char c) {
-    detector.prev_status = detector.status;
-
     if (detector.status == MATCH) detector.status = IMPOSSIBLE;
     if (detector.status == IMPOSSIBLE) return detector;
 
@@ -84,8 +82,6 @@ struct universal_character_name_detector detect_universal_character_name(struct 
 }
 
 struct identifier_detector detect_identifier(struct identifier_detector detector, char c) {
-    detector.prev_status = detector.status;
-
     if (detector.status == IMPOSSIBLE) return detector;
 
     if (!(isalpha(c) || c == '_' || isdigit(c))) {
@@ -121,8 +117,6 @@ struct identifier_detector detect_identifier(struct identifier_detector detector
 }
 
 struct pp_number_detector detect_pp_number(struct pp_number_detector detector, char c) {
-    detector.prev_status = detector.status;
-
     if (detector.status == IMPOSSIBLE) return detector;
 
     if (detector.is_first_char && isdigit(c)) {
@@ -238,8 +232,6 @@ struct escape_sequence_detector detect_escape_sequence(struct escape_sequence_de
 static struct char_const_str_literal_detector detect_char_const_str_literal(struct char_const_str_literal_detector detector, char quote, char c) {
     if (detector.just_opened) detector.just_opened = false;
 
-    detector.prev_status = detector.status;
-
     if (detector.status == MATCH) {
         detector.status = IMPOSSIBLE;
     }
@@ -320,8 +312,6 @@ struct punctuator_detector detect_punctuator(struct punctuator_detector detector
 }
 
 struct single_char_detector detect_single_char(struct single_char_detector detector, char c) {
-    detector.prev_status = detector.status;
-
     if (detector.status == IMPOSSIBLE) return detector;
     else if (detector.status == MATCH) detector.status = IMPOSSIBLE;
     // newlines aren't actually tokens but they're significant in phase 4, so it's easier to treat them as tokens
@@ -429,23 +419,21 @@ static bool token_is_str(struct preprocessing_token token, const char *str) {
 }
 
 pp_token_vec get_pp_tokens(struct chars input) {
-    static struct universal_character_name_detector initial_ucnd =
-            {.status=POSSIBLE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false};
     struct char_const_str_literal_detector initial_ccsld = {.status=POSSIBLE, .looking_for_open_quote=true, .in_literal=false,
             .prev_esc_seq_status=POSSIBLE, .is_first_char=true, .just_opened=false,
             .esc_seq_detector={.status=POSSIBLE, .looking_for_hex=false, .looking_for_octal=false,
                     .next_char_invalid=false,.is_first_char=true, .is_second_char=false,
-                    .n_octals=0, .ucn_detector=initial_ucnd}};
+                    .n_octals=0, .ucn_detector=initial_ucn_detector}};
     struct preprocessing_token_detector initial_detector = {
             .status=POSSIBLE,
             .prev_status=POSSIBLE,
             .header_name_detector={.status=POSSIBLE, .is_first_char=true},
-            .identifier_detector={.is_first_char=true, .status=POSSIBLE, .ucn_detector=initial_ucnd},
+            .identifier_detector={.is_first_char=true, .status=POSSIBLE, .ucn_detector=initial_ucn_detector},
             .pp_number_detector={.status=POSSIBLE, .looking_for_digit=false, .looking_for_ucn=false,
-                                 .looking_for_sign=false, .is_first_char=true,.ucn_detector=initial_ucnd},
+                                 .looking_for_sign=false, .is_first_char=true,.ucn_detector=initial_ucn_detector},
             .character_constant_detector=initial_ccsld,
             .string_literal_detector=initial_ccsld,
-            .punctuator_detector={.status=POSSIBLE, .is_first_char=true, .place_in_trie=&punctuators_trie},
+            .punctuator_detector={.status=POSSIBLE, .place_in_trie=&punctuators_trie},
             .single_char_detector={.status=POSSIBLE},
             .is_first_char=true,
             .was_first_char=false,
