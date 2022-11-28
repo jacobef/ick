@@ -124,7 +124,7 @@ struct pp_number_detector detect_pp_number(struct pp_number_detector detector, c
     }
     else if (detector.is_first_char && c == '.') {
         detector.looking_for_digit = true;
-        detector.status = POSSIBLE;
+        detector.status = INCOMPLETE;
     }
     else if (detector.is_first_char) {
         detector.status = IMPOSSIBLE;
@@ -146,11 +146,11 @@ struct pp_number_detector detect_pp_number(struct pp_number_detector detector, c
     else if (detector.status == MATCH) {
         if (c == 'e' || c == 'E' || c == 'p' || c == 'P') {
             detector.looking_for_sign = true;
-            detector.status = POSSIBLE;
+            detector.status = INCOMPLETE;
         }
         else if (c == '\\') {
             detector.looking_for_ucn = true;
-            detector.status = POSSIBLE;
+            detector.status = INCOMPLETE;
         }
         else if (!(isalpha(c) || c == '_' || isdigit(c) || c == '.'))  {
             detector.status = IMPOSSIBLE;
@@ -305,7 +305,7 @@ struct punctuator_detector detect_punctuator(struct punctuator_detector detector
     }
     else {
         if (next_place_in_trie->match) detector.status = MATCH;
-        else detector.status = POSSIBLE;
+        else detector.status = INCOMPLETE;
         detector.place_in_trie = next_place_in_trie;
     }
     return detector;
@@ -339,11 +339,11 @@ struct preprocessing_token_detector detect_preprocessing_token(struct preprocess
         || detector.single_char_detector.status == MATCH) {
         detector.status = MATCH;
     }
-    else if (detector.header_name_detector.status == POSSIBLE || detector.identifier_detector.status == POSSIBLE
-             || detector.pp_number_detector.status == POSSIBLE || detector.character_constant_detector.status == POSSIBLE
-             || detector.string_literal_detector.status == POSSIBLE || detector.punctuator_detector.status == POSSIBLE
-             || detector.single_char_detector.status == POSSIBLE) {
-        detector.status = POSSIBLE;
+    else if (detector.header_name_detector.status == INCOMPLETE || detector.identifier_detector.status == INCOMPLETE
+             || detector.pp_number_detector.status == INCOMPLETE || detector.character_constant_detector.status == INCOMPLETE
+             || detector.string_literal_detector.status == INCOMPLETE || detector.punctuator_detector.status == INCOMPLETE
+             || detector.single_char_detector.status == INCOMPLETE) {
+        detector.status = INCOMPLETE;
     }
     else {
         detector.status = IMPOSSIBLE;
@@ -419,22 +419,22 @@ static bool token_is_str(struct preprocessing_token token, const char *str) {
 }
 
 pp_token_vec get_pp_tokens(struct chars input) {
-    struct char_const_str_literal_detector initial_ccsld = {.status=POSSIBLE, .looking_for_open_quote=true, .in_literal=false,
-            .prev_esc_seq_status=POSSIBLE, .is_first_char=true, .just_opened=false,
-            .esc_seq_detector={.status=POSSIBLE, .looking_for_hex=false, .looking_for_octal=false,
+    struct char_const_str_literal_detector initial_ccsld = {.status=INCOMPLETE, .looking_for_open_quote=true, .in_literal=false,
+            .prev_esc_seq_status=INCOMPLETE, .is_first_char=true, .just_opened=false,
+            .esc_seq_detector={.status=INCOMPLETE, .looking_for_hex=false, .looking_for_octal=false,
                     .next_char_invalid=false,.is_first_char=true, .is_second_char=false,
                     .n_octals=0, .ucn_detector=initial_ucn_detector}};
     struct preprocessing_token_detector initial_detector = {
-            .status=POSSIBLE,
-            .prev_status=POSSIBLE,
-            .header_name_detector={.status=POSSIBLE, .is_first_char=true},
-            .identifier_detector={.is_first_char=true, .status=POSSIBLE, .ucn_detector=initial_ucn_detector},
-            .pp_number_detector={.status=POSSIBLE, .looking_for_digit=false, .looking_for_ucn=false,
+            .status=INCOMPLETE,
+            .prev_status=INCOMPLETE,
+            .header_name_detector={.status=INCOMPLETE, .is_first_char=true},
+            .identifier_detector={.is_first_char=true, .status=INCOMPLETE, .ucn_detector=initial_ucn_detector},
+            .pp_number_detector={.status=INCOMPLETE, .looking_for_digit=false, .looking_for_ucn=false,
                                  .looking_for_sign=false, .is_first_char=true,.ucn_detector=initial_ucn_detector},
             .character_constant_detector=initial_ccsld,
             .string_literal_detector=initial_ccsld,
-            .punctuator_detector={.status=POSSIBLE, .place_in_trie=&punctuators_trie},
-            .single_char_detector={.status=POSSIBLE},
+            .punctuator_detector={.status=INCOMPLETE, .place_in_trie=&punctuators_trie},
+            .single_char_detector={.status=INCOMPLETE},
             .is_first_char=true,
             .was_first_char=false,
     };
@@ -446,7 +446,7 @@ pp_token_vec get_pp_tokens(struct chars input) {
 
     struct preprocessing_token_detector token_detector = initial_detector;
     struct preprocessing_token_detector detector_at_most_recent_match;
-    struct comment_detector initial_comment_detector = {.status = POSSIBLE, .is_first_char=true, .is_second_char=false,
+    struct comment_detector initial_comment_detector = {.status = INCOMPLETE, .is_first_char=true, .is_second_char=false,
             .next_char_invalid=false};
     struct comment_detector comment_detector = initial_comment_detector;
 
@@ -476,7 +476,7 @@ pp_token_vec get_pp_tokens(struct chars input) {
             token_detector.header_name_detector.status = IMPOSSIBLE;
         }
         token_detector = detect_preprocessing_token(token_detector, *c);
-        if ((token_detector.status == POSSIBLE || token_detector.status == MATCH) && (token_detector.was_first_char || token_detector.prev_status == IMPOSSIBLE)) {
+        if ((token_detector.status == INCOMPLETE || token_detector.status == MATCH) && (token_detector.was_first_char || token_detector.prev_status == IMPOSSIBLE)) {
             token.first = c;
             if (c != input.chars && isspace(*(c-1))) token.after_whitespace = true;
             else token.after_whitespace = false;

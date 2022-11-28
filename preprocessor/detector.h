@@ -5,7 +5,7 @@
 
 enum detection_status {
     IMPOSSIBLE,
-    POSSIBLE,
+    INCOMPLETE,
     MATCH
 };
 
