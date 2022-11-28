@@ -11,7 +11,7 @@
 
 /*!
  * Returns a malloc'd string, which is fname with its file extension changed to new_ext.\n
- * More detailed:\n
+ * Specifically:\n
  * 1) The file extension is removed, if it exists.
  * The extension is considered to start at (and include) the last dot that isn't the first character.\n
  * 2) new_ext is appended to the string.
@@ -21,8 +21,7 @@
  * \code{.c}
  * char some_c_file[5] = "hi.c"
  * char *some_asm_file = change_fname_ext(some_c_file, ".s");
- * printf("%s", some_asm_file);
- * // prints "hi.s"
+ * printf("%s", some_asm_file); // prints "hi.s"
  * \endcode
  * @example
  * The following examples are shorthand:\n

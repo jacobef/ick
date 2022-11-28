@@ -117,18 +117,4 @@ static inline void _key_t##_##_value_t##_map##_free_internals(_key_t##_##_value_
     DEFINE_MAP_GET_FUNCTION(_key_t, _value_t)                                             \
     DEFINE_MAP_FREE_INTERNALS_FUNCTION(_key_t, _value_t)
 
-
-// To avoid namespace pollution
-#undef DEFINE_MAP_TYPE
-#undef DEFINE_MAP_INIT_FUNCTION
-#undef TRY_NEW_ENTRY_INDEX
-#undef MAP_CALL_HASH_FUNC
-#undef MAP_CALL_KEYS_EQUAL
-#undef DEFINE_MAP_APPEND_NO_EXPAND_FUNCTION
-#undef DEFINE_MAP_EXPAND_FUNCTION
-#undef DEFINE_MAP_APPEND_FUNCTION
-#undef DEFINE_MAP_GET_FUNCTION
-#undef DEFINE_MAP_FREE_INTERNALS_FUNCTION
-#undef DEFINE_MAP_TYPE_AND_FUNCTIONS
-
 #endif //ICK_DATA_STRUCTURES_MAP_H

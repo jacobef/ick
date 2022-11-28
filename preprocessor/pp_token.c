@@ -16,8 +16,6 @@ static bool in_src_char_set(char c) {
 }
 
 struct header_name_detector detect_header_name(struct header_name_detector detector, char c) {
-    detector.prev_status = detector.status;
-
     if (detector.status == MATCH) detector.status = IMPOSSIBLE;
     if (detector.status == IMPOSSIBLE) return detector;
 
@@ -84,8 +82,6 @@ struct universal_character_name_detector detect_universal_character_name(struct 
 }
 
 struct identifier_detector detect_identifier(struct identifier_detector detector, char c) {
-    detector.prev_status = detector.status;
-
     if (detector.status == IMPOSSIBLE) return detector;
 
     if (!(isalpha(c) || c == '_' || isdigit(c))) {
@@ -121,8 +117,6 @@ struct identifier_detector detect_identifier(struct identifier_detector detector
 }
 
 struct pp_number_detector detect_pp_number(struct pp_number_detector detector, char c) {
-    detector.prev_status = detector.status;
-
     if (detector.status == IMPOSSIBLE) return detector;
 
     if (detector.is_first_char && isdigit(c)) {
@@ -238,8 +232,6 @@ struct escape_sequence_detector detect_escape_sequence(struct escape_sequence_de
 static struct char_const_str_literal_detector detect_char_const_str_literal(struct char_const_str_literal_detector detector, char quote, char c) {
     if (detector.just_opened) detector.just_opened = false;
 
-    detector.prev_status = detector.status;
-
     if (detector.status == MATCH) {
         detector.status = IMPOSSIBLE;
     }
@@ -304,16 +296,6 @@ struct char_const_str_literal_detector detect_string_literal(struct char_const_s
 }
 
 struct punctuator_detector detect_punctuator(struct punctuator_detector detector, char c) {
-    /*
-    punctuators:
-    "[", "]", "(", ")", "{", "}", ".", "->",
-    "++", "--", "&", "*", "+", "-", "~", "!",
-    "\\", "%", "<<", ">>", "<", ">", "<=", ">=", "==", "!=", "^", "|", "&&", "||",
-    "?", ":", ";", "...",
-    "=", "*=", "/=", "%=", "+=", "-=", "<<=", ">>=", "&=", "^=", "|=",
-    ",", "#", "##",
-    "<:", ":>", "<%", "%>", "%:", "%:%:"
-    */
 
     if (detector.status == IMPOSSIBLE) return detector;
 
@@ -330,10 +312,10 @@ struct punctuator_detector detect_punctuator(struct punctuator_detector detector
 }
 
 struct single_char_detector detect_single_char(struct single_char_detector detector, char c) {
-    detector.prev_status = detector.status;
-
     if (detector.status == IMPOSSIBLE) return detector;
     else if (detector.status == MATCH) detector.status = IMPOSSIBLE;
+    // newlines aren't actually tokens but they're significant in phase 4, so it's easier to treat them as tokens
+    else if (isspace(c) && c != '\n') detector.status = IMPOSSIBLE;
     else detector.status = MATCH;
     return detector;
 }
@@ -417,7 +399,7 @@ struct comment_detector detect_comment(struct comment_detector detector, char c)
 }
 
 void add_type(struct preprocessing_token *token, struct preprocessing_token_detector detector) {
-    if (detector.string_literal_detector.status == MATCH) token->type = HEADER_NAME_OR_STRING_LITERAL;
+    if (detector.string_literal_detector.status == MATCH) token->type = STRING_LITERAL;
     else if (detector.header_name_detector.status == MATCH) token->type = HEADER_NAME;
     else if (detector.identifier_detector.status == MATCH) token->type = IDENTIFIER;
     else if (detector.pp_number_detector.status == MATCH) token->type = PP_NUMBER;
@@ -429,74 +411,91 @@ void add_type(struct preprocessing_token *token, struct preprocessing_token_dete
     }
 }
 
+static bool token_is_str(struct preprocessing_token token, const char *str) {
+    for (const char *tok_it = token.first, *str_it = str; tok_it != token.last+1 && *str_it; tok_it++, str_it++) {
+        if (*tok_it != *str_it) return false;
+    }
+    return true;
+}
+
 pp_token_vec get_pp_tokens(struct chars input) {
-    static struct universal_character_name_detector initial_ucnd =
-            {.status=INCOMPLETE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false};
     struct char_const_str_literal_detector initial_ccsld = {.status=INCOMPLETE, .looking_for_open_quote=true, .in_literal=false,
             .prev_esc_seq_status=INCOMPLETE, .is_first_char=true, .just_opened=false,
             .esc_seq_detector={.status=INCOMPLETE, .looking_for_hex=false, .looking_for_octal=false,
                     .next_char_invalid=false,.is_first_char=true, .is_second_char=false,
-                    .n_octals=0, .ucn_detector=initial_ucnd}};
+                    .n_octals=0, .ucn_detector=initial_ucn_detector}};
     struct preprocessing_token_detector initial_detector = {
             .status=INCOMPLETE,
             .prev_status=INCOMPLETE,
             .header_name_detector={.status=INCOMPLETE, .is_first_char=true},
-            .identifier_detector={.is_first_char=true, .status=INCOMPLETE, .ucn_detector=initial_ucnd},
+            .identifier_detector={.is_first_char=true, .status=INCOMPLETE, .ucn_detector=initial_ucn_detector},
             .pp_number_detector={.status=INCOMPLETE, .looking_for_digit=false, .looking_for_ucn=false,
-                                 .looking_for_sign=false, .is_first_char=true,.ucn_detector=initial_ucnd},
+                                 .looking_for_sign=false, .is_first_char=true,.ucn_detector=initial_ucn_detector},
             .character_constant_detector=initial_ccsld,
             .string_literal_detector=initial_ccsld,
-            .punctuator_detector={.status=INCOMPLETE, .is_first_char=true, .place_in_trie=&punctuators_trie},
+            .punctuator_detector={.status=INCOMPLETE, .place_in_trie=&punctuators_trie},
             .single_char_detector={.status=INCOMPLETE},
             .is_first_char=true,
-            .was_first_char=false
+            .was_first_char=false,
     };
-    struct preprocessing_token_detector detector = initial_detector;
-    struct preprocessing_token_detector prev_detector;
+
+    pp_token_vec result;
+    pp_token_vec_init(&result, 0);
+    bool match_exists = false;
+    struct preprocessing_token_detector token_detector = initial_detector;
+    struct preprocessing_token_detector detector_at_most_recent_match;
     struct comment_detector initial_comment_detector = {.status = INCOMPLETE, .is_first_char=true, .is_second_char=false,
             .next_char_invalid=false};
     struct comment_detector comment_detector = initial_comment_detector;
 
-    pp_token_vec result;
-    pp_token_vec_init(&result, 0);
-
     struct preprocessing_token initial_token = { 0 };
     struct preprocessing_token token = initial_token;
+    struct preprocessing_token token_at_most_recent_match;
     for (const char *c = input.chars; c != input.chars + input.n_chars; c++) {
         comment_detector = detect_comment(comment_detector, *c);
-        if (detector.string_literal_detector.in_literal || detector.character_constant_detector.in_literal) {
+        if (token_detector.string_literal_detector.in_literal || token_detector.character_constant_detector.in_literal) {
             comment_detector.status = IMPOSSIBLE;
         }
         else if (comment_detector.status == MATCH) {
             continue;
         }
         else if (comment_detector.status == IMPOSSIBLE && comment_detector.prev_status == MATCH) {
-            detector = initial_detector;
-            char *space = " ";
-            pp_token_vec_append(&result, (struct preprocessing_token) {
-                // feels sketchy but should be ok because string literals have static storage duration
-                .type=SINGLE_CHAR, .first=space, .last=space
-            });
+            token_detector = initial_detector;
         }
         if (comment_detector.status == IMPOSSIBLE) {
             comment_detector = initial_comment_detector;
         }
 
-        prev_detector = detector;
-        detector = detect_preprocessing_token(detector, *c);
-
-        if ((detector.status == INCOMPLETE || detector.status == MATCH) && (detector.was_first_char || detector.prev_status == IMPOSSIBLE)) {
+        if (result.n_elements >= 2
+            && token_is_str(result.arr[result.n_elements-2], "#")
+            && token_is_str(result.arr[result.n_elements-1], "include")) {
+            token_detector.string_literal_detector.status = IMPOSSIBLE;
+        }
+        else {
+            token_detector.header_name_detector.status = IMPOSSIBLE;
+        }
+        token_detector = detect_preprocessing_token(token_detector, *c);
+        if ((token_detector.status == INCOMPLETE || token_detector.status == MATCH) && (token_detector.was_first_char || token_detector.prev_status == IMPOSSIBLE)) {
             token.first = c;
+            if (c != input.chars && isspace(*(c-1))) token.after_whitespace = true;
+            else token.after_whitespace = false;
         }
-        else if (detector.status == IMPOSSIBLE && detector.prev_status == MATCH) {
-            c--; // TODO explain this line
+        if (token_detector.status == MATCH) {
+            match_exists = true;
             token.last = c;
-            add_type(&token, prev_detector);
-            pp_token_vec_append(&result, token);
-            token = initial_token;
-            comment_detector = initial_comment_detector;
+            token_at_most_recent_match = token;
+            detector_at_most_recent_match = token_detector;
         }
-        if (detector.status == IMPOSSIBLE) detector = initial_detector;
+        if (token_detector.status == IMPOSSIBLE && match_exists) {
+            add_type(&token_at_most_recent_match, detector_at_most_recent_match);
+            pp_token_vec_append(&result, token_at_most_recent_match);
+            token = initial_token;
+            token_detector = initial_detector;
+            comment_detector = initial_comment_detector;
+            match_exists = false;
+            c = token_at_most_recent_match.last;
+        }
+        if (token_detector.status == IMPOSSIBLE) token_detector = initial_detector;
     }
 
     return result;

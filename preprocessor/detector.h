@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 enum detection_status {
-    MATCH, INCOMPLETE, IMPOSSIBLE
+    IMPOSSIBLE, INCOMPLETE, MATCH
 };
 
 static inline bool is_octal_digit(char c) {

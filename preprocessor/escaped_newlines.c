@@ -19,5 +19,5 @@ struct chars rm_escaped_newlines(struct chars input) {
     for (; reader != input.chars + input.n_chars; writer++, reader++) {
         *writer = *reader;
     }
-    return (struct chars){.chars = output_chars, .n_chars = writer-output_chars};
+    return (struct chars){ .chars = output_chars, .n_chars = writer-output_chars };
 }

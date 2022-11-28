@@ -1,9 +1,9 @@
 #include "diagnostics.h"
 
 #define VFPRINTF_VAARGS_FOLLOW(_stream, _fmt) \
-    va_list args;                                        \
-    va_start(args, _fmt);                                \
-    vfprintf(_stream, _fmt, args);                       \
+    va_list args;                             \
+    va_start(args, _fmt);                     \
+    vfprintf(_stream, _fmt, args);            \
     va_end(args);
 
 
