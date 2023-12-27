@@ -10,7 +10,7 @@
 #define C_EXT ".c"
 
 /*!
- * Returns a malloc'd string, which is fname with its file extension changed to new_ext.\n
+ * Returns a malloc'd string, which is fname with its file extension changed to new_ext.
  * Specifically:\n
  * 1) The file extension is removed, if it exists.
  * The extension is considered to start at (and include) the last dot that isn't the first character.\n
@@ -36,8 +36,7 @@ char *new_fname_ext(const char *fname, const char *new_ext);
 
 /*
  * Returns the number of bytes in the file, not including EOF.
- * Sets the file's position indicator to the beginning of the file.
  */
-long get_filesize_then_rewind(FILE *file);
+unsigned long get_filesize(FILE *file);
 
 #endif //ICK_FILE_UTILS_H

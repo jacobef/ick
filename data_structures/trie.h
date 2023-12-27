@@ -8,9 +8,9 @@ struct trie {
     struct trie *children;
     uint_fast8_t n_children;
     bool match;
-    char val;
+    unsigned char val;
 };
 
-struct trie *trie_get_child(struct trie *trie, char c);
+struct trie *trie_get_child(struct trie *trie, unsigned char c);
 
 #endif //ICK_TRIE_H

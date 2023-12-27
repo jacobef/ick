@@ -10,7 +10,7 @@ size_t hash_cstr(char *cstr, size_t capacity) {
 }
 
 size_t hash_char(char chr, size_t capacity) {
-    return (chr * capacity) % capacity;
+    return ((size_t)chr * capacity) % capacity;
 }
 
 bool chars_equal(char c1, char c2) {

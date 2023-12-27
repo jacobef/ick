@@ -1,10 +1,6 @@
 #ifndef ICK_DIAGNOSTICS_H
 #define ICK_DIAGNOSTICS_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-
 extern char *ick_progname;
 
 void driver_warning(const char *msg_fmt, ...);

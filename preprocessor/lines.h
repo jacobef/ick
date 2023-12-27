@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 struct chars {
-    char *chars;
+    unsigned char *chars;
     size_t n_chars;
 };
 

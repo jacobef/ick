@@ -7,14 +7,18 @@
 #include "preprocessor/trigraphs.h"
 #include "preprocessor/escaped_newlines.h"
 #include "preprocessor/pp_token.h"
+#include "preprocessor/parser.h"
 
 char *ick_progname;
 
 int main(int argc, char *argv[]) {
+#ifdef DEBUG
+    atexit(check_reminders);
+#endif
     if (argc == 0 || (argv[0][0] == '\0')) ick_progname = "ick";
-    else {
+    else { // set ick_progname to the basename of argv[0]
         size_t argv0_len = strlen(argv[0]);
-        ick_progname = malloc(argv0_len + 1);
+        ick_progname = MALLOC(argv0_len + 1);
         const char *last_path_sep;
         for (last_path_sep = argv[0]+argv0_len-1;
         last_path_sep >= argv[0] && *last_path_sep != '/' && *last_path_sep != '\\';
@@ -41,17 +45,17 @@ int main(int argc, char *argv[]) {
     }
 
     FILE *output_file = fopen(output_fname, "w");
-    free(output_fname);
+    FREE(output_fname);
 
-    long input_len = get_filesize_then_rewind(input_file);
-    char *input_chars = malloc(input_len+1);
-    fread(input_chars, sizeof(char), input_len, input_file);
+    size_t input_len = get_filesize(input_file);
+    unsigned char *input_chars = MALLOC(input_len+1);
+    fread(input_chars, sizeof(unsigned char), input_len, input_file);
     fclose(input_file);
     input_chars[input_len] = '\n'; // too much of a pain without this
 
     struct chars trigraphs_replaced = replace_trigraphs(
             (struct chars){ .chars = input_chars, .n_chars = input_len + 1 }
-            );
+    );
     struct chars logical_lines = rm_escaped_newlines(trigraphs_replaced);
     fwrite(logical_lines.chars, sizeof(char), logical_lines.n_chars, output_file);
 
@@ -60,7 +64,7 @@ int main(int argc, char *argv[]) {
     pp_token_vec pp_tokens = get_pp_tokens(logical_lines);
     for (size_t i = 0; i < pp_tokens.n_elements; i++) {
         struct preprocessing_token token = pp_tokens.arr[i];
-        const char *it = token.first;
+        const unsigned char *it = token.first;
         while (it != token.last+1) {
             switch(*it) {
                 case ' ':
@@ -92,8 +96,8 @@ int main(int argc, char *argv[]) {
     }
 
     pp_token_vec_free_internals(&pp_tokens);
-    free(input_chars);
-    free(trigraphs_replaced.chars);
-    free(logical_lines.chars);
-    free(ick_progname);
+    FREE(input_chars);
+    FREE(trigraphs_replaced.chars);
+    FREE(logical_lines.chars);
+    FREE(ick_progname);
 }
