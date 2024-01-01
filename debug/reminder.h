@@ -13,7 +13,7 @@ void check_reminders(void);
 #define REMEMBERED_TO(msg) remove_reminder(msg, __FILE__, __func__, __LINE__)
 #else
 #define REMEMBER(msg)
-    #define REMEMBERED_TO(msg)
+#define REMEMBERED_TO(msg)
 #endif
 
 #endif //ICK_REMINDER_H

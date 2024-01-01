@@ -361,26 +361,20 @@ struct comment_detector detect_comment(struct comment_detector detector, unsigne
 
     if (detector.next_char_invalid) {
         detector.status = IMPOSSIBLE;
-    }
-    else if (detector.is_first_char && c != '/') {
+    } else if (detector.is_first_char && c != '/') {
         detector.status = IMPOSSIBLE;
-    }
-    else if (detector.is_first_char) {}
+    } else if (detector.is_first_char) {}
     else if (detector.is_second_char && c == '/') {
         detector.is_multiline = false;
         detector.status = MATCH;
-    }
-    else if (detector.is_second_char && c == '*') {
+    } else if (detector.is_second_char && c == '*') {
         detector.is_multiline = true;
         detector.status = MATCH;
-    }
-    else if (detector.is_second_char) {
+    } else if (detector.is_second_char) {
         detector.status = IMPOSSIBLE;
-    }
-    else if (detector.is_multiline && detector.prev_char == '*' && c == '/') {
+    } else if (detector.is_multiline && detector.prev_char == '*' && c == '/') {
         detector.next_char_invalid = true;
-    }
-    else if (!detector.is_multiline && c == '\n') {
+    } else if (!detector.is_multiline && c == '\n') {
         detector.status = IMPOSSIBLE;
     }
 
@@ -415,6 +409,16 @@ static bool token_is_str(struct preprocessing_token token, const unsigned char *
     return true;
 }
 
+static bool in_include_directive(pp_token_vec tokens) {
+    const bool at_beginning_of_file = tokens.n_elements == 2;
+    const bool after_hashtag_include = tokens.n_elements >= 2
+                                        && token_is_str(tokens.arr[tokens.n_elements - 2], (unsigned char*)"#")
+                                        && token_is_str(tokens.arr[tokens.n_elements - 1], (unsigned char*)"include");
+    const bool hashtag_after_newline = tokens.n_elements >= 3
+                                        && token_is_str(tokens.arr[tokens.n_elements - 3], (unsigned char*)"\n");
+    return after_hashtag_include && (at_beginning_of_file || hashtag_after_newline);
+}
+
 pp_token_vec get_pp_tokens(struct chars input) {
     struct char_const_str_literal_detector initial_ccsld = {.status=INCOMPLETE, .looking_for_open_quote=true, .in_literal=false,
             .prev_esc_seq_status=INCOMPLETE, .is_first_char=true, .just_opened=false,
@@ -447,17 +451,15 @@ pp_token_vec get_pp_tokens(struct chars input) {
     struct preprocessing_token token; // scary
     struct preprocessing_token token_at_most_recent_match;
     for (const unsigned char *c = input.chars; c != input.chars + input.n_chars; c++) {
-        if (tokens.n_elements >= 2
-            && token_is_str(tokens.arr[tokens.n_elements - 2], (unsigned char*)"#")
-            && token_is_str(tokens.arr[tokens.n_elements - 1], (unsigned char*)"include")) {
+        if (in_include_directive(tokens)) {
             token_detector = detect_preprocessing_token(token_detector, *c, EXCLUDE_STRING_LITERAL);
         } else {
             token_detector = detect_preprocessing_token(token_detector, *c, EXCLUDE_HEADER_NAME);
         }
         if (token_detector.status != IMPOSSIBLE && (token_detector.was_first_char || token_detector.prev_status == IMPOSSIBLE)) {
             token.first = c;
-            bool after_actual_whitespace = c != input.chars && isspace(*(c-1));
-            bool after_comment = tokens.n_elements > 0 && tokens.arr[tokens.n_elements - 1].type == COMMENT;
+            const bool after_actual_whitespace = c != input.chars && isspace(*(c-1));
+            const bool after_comment = tokens.n_elements > 0 && tokens.arr[tokens.n_elements - 1].type == COMMENT;
             token.after_whitespace = after_actual_whitespace || after_comment;
         }
         if (token_detector.status == MATCH) {

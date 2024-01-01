@@ -24,29 +24,29 @@ static void _type##_vec##_init(_type##_vec *vec_p, size_t capacity) {        \
     REMEMBER("free " #_type " vector internals");                            \
 }
 
-#define DEFINE_VEC_AT_FUNCTION(_type)                                      \
-__attribute__((unused))                             \
+#define DEFINE_VEC_AT_FUNCTION(_type)                               \
+__attribute__((unused))                                             \
 static _type _type##_vec##_at(const _type##_vec *vec_p, size_t i) { \
-    return vec_p->arr[i];                                                  \
+    return vec_p->arr[i];                                           \
 }
 
 
-#define DEFINE_VEC_EXPAND_FUNCTION(_type)                                            \
-__attribute__((unused))                             \
+#define DEFINE_VEC_EXPAND_FUNCTION(_type)                                     \
+__attribute__((unused))                                                       \
 static void _type##_vec##_expand(_type##_vec *vec_p, size_t extra_capacity) { \
-    vec_p->capacity += extra_capacity;                                               \
-    vec_p->arr = REALLOC(vec_p->arr, vec_p->capacity * sizeof(_type));               \
+    vec_p->capacity += extra_capacity;                                        \
+    vec_p->arr = REALLOC(vec_p->arr, vec_p->capacity * sizeof(_type));        \
 }
 
-#define DEFINE_VEC_SHRINK_RETAIN_CAPACITY_FUNCTION(_type)                                       \
-__attribute__((unused))                             \
+#define DEFINE_VEC_SHRINK_RETAIN_CAPACITY_FUNCTION(_type)                                \
+__attribute__((unused))                                                                  \
 static void _type##_vec##_shrink_retain_capacity(_type##_vec *vec_p, size_t shrink_by) { \
-    vec_p->n_elements -= shrink_by;                                                             \
+    vec_p->n_elements -= shrink_by;                                                      \
 }
 
 #define DEFINE_VEC_APPEND_FUNCTION(_type)                                     \
-__attribute__((unused))                             \
-static void _type##_vec##_append(_type##_vec *vec_p, _type element) {  \
+__attribute__((unused))                                                       \
+static void _type##_vec##_append(_type##_vec *vec_p, _type element) {         \
     if (vec_p->n_elements == vec_p->capacity ) {                              \
         _type##_vec##_expand(vec_p, vec_p->capacity); /* doubles capacity */  \
     }                                                                         \

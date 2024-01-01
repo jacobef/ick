@@ -15,7 +15,6 @@ static void preprocessor_message_prefix(FILE *stream, size_t line, size_t first_
         fprintf(stream, "%s (line %zu, chars %zu-%zu): ", "insert filename here", line, first_char, last_char);
 }
 
-__attribute__((format(printf, 4, 5), noreturn))
 void preprocessor_fatal_error(size_t line, size_t first_char, size_t last_char, const char *msg_fmt, ...) {
     preprocessor_message_prefix(stderr, line, first_char, last_char);
     fprintf(stderr, "fatal error: ");
@@ -24,7 +23,6 @@ void preprocessor_fatal_error(size_t line, size_t first_char, size_t last_char, 
     exit(1);
 }
 
-__attribute__((format(printf, 4, 5)))
 void preprocessor_error(size_t line, size_t first_char, size_t last_char, const char *msg_fmt, ...) {
     preprocessor_message_prefix(stderr, line, first_char, last_char);
     fprintf(stderr, "error: ");
@@ -32,7 +30,6 @@ void preprocessor_error(size_t line, size_t first_char, size_t last_char, const 
     fprintf(stderr, "\n");
 }
 
-__attribute__((format(printf, 4, 5)))
 void preprocessor_warning(size_t line, size_t first_char, size_t last_char, const char *msg_fmt, ...) {
     preprocessor_message_prefix(stderr, line, first_char, last_char);
     fprintf(stderr, "warning: ");

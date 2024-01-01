@@ -6,6 +6,9 @@
 #define ICK_MALLOC_H
 #include <stddef.h>
 
+void *xmalloc(size_t size);
+void *xrealloc(void *ptr, size_t size);
+
 #ifdef DEBUG
 
 void *debug_malloc(size_t size, const char *file, const char *func, int line);
