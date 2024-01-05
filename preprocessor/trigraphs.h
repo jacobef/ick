@@ -1,9 +1,9 @@
 #ifndef ICK_TRIGRAPHS_H
 #define ICK_TRIGRAPHS_H
 
-#include "lines.h"
+#include "sized_str.h"
 #include <stddef.h>
 
-struct chars replace_trigraphs(struct chars input);
+struct sstr replace_trigraphs(struct sstr input);
 
 #endif //ICK_TRIGRAPHS_H

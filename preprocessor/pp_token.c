@@ -419,7 +419,7 @@ static bool in_include_directive(pp_token_vec tokens) {
     return after_hashtag_include && (at_beginning_of_file || hashtag_after_newline);
 }
 
-pp_token_vec get_pp_tokens(struct chars input) {
+pp_token_vec get_pp_tokens(struct sstr input) {
     struct char_const_str_literal_detector initial_ccsld = {.status=INCOMPLETE, .looking_for_open_quote=true, .in_literal=false,
             .prev_esc_seq_status=INCOMPLETE, .is_first_char=true, .just_opened=false,
             .esc_seq_detector={.status=INCOMPLETE, .looking_for_hex=false, .looking_for_octal=false,

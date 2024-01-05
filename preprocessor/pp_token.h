@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "data_structures/vector.h"
 #include "data_structures/trie.h"
-#include "lines.h"
+#include "sized_str.h"
 #include "detector.h"
 
 
@@ -138,7 +138,7 @@ struct preprocessing_token_detector detect_preprocessing_token(struct preprocess
 
 typedef struct preprocessing_token pp_token;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(pp_token)
-pp_token_vec get_pp_tokens(struct chars input);
+pp_token_vec get_pp_tokens(struct sstr input);
 
 static struct trie punctuators_trie = {
     /*

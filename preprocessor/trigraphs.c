@@ -3,7 +3,7 @@
 #include <limits.h>
 #include <stdbool.h>
 #include "data_structures/vector.h"
-#include "lines.h"
+#include "sized_str.h"
 
 static bool is_trigraph(const unsigned char *trigraph) {
     if (trigraph[0] != '?' || trigraph[1] != '?') return false;
@@ -15,7 +15,7 @@ static bool is_trigraph(const unsigned char *trigraph) {
     }
 }
 
-struct chars replace_trigraphs(struct chars input) {
+struct sstr replace_trigraphs(struct sstr input) {
     // This can be an unsigned char array because these characters must be nonnegative; see 6.2.5 paragraph 3.
     // For the same reason, they're also OK to use as indices.
     unsigned char trigraphs_to_replacements[CHAR_MAX+1];
@@ -47,5 +47,5 @@ struct chars replace_trigraphs(struct chars input) {
     for (; reader != input.chars + input.n_chars; writer++, reader++) {
         *writer = *reader;
     }
-    return (struct chars){.chars = output_chars, .n_chars = (size_t)(writer - output_chars)};
+    return (struct sstr){.chars = output_chars, .n_chars = (size_t)(writer - output_chars)};
 }

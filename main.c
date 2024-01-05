@@ -3,7 +3,7 @@
 #include "data_structures/vector.h"
 #include "driver/file_utils.h"
 #include "driver/diagnostics.h"
-#include "preprocessor/lines.h"
+#include "preprocessor/sized_str.h"
 #include "preprocessor/trigraphs.h"
 #include "preprocessor/escaped_newlines.h"
 #include "preprocessor/pp_token.h"
@@ -53,10 +53,10 @@ int main(int argc, char *argv[]) {
     fclose(input_file);
     input_chars[input_len] = '\n'; // too much of a pain without this
 
-    struct chars trigraphs_replaced = replace_trigraphs(
-            (struct chars){ .chars = input_chars, .n_chars = input_len + 1 }
+    struct sstr trigraphs_replaced = replace_trigraphs(
+            (struct sstr){ .chars = input_chars, .n_chars = input_len + 1 }
     );
-    struct chars logical_lines = rm_escaped_newlines(trigraphs_replaced);
+    struct sstr logical_lines = rm_escaped_newlines(trigraphs_replaced);
     fwrite(logical_lines.chars, sizeof(char), logical_lines.n_chars, output_file);
 
     fclose(output_file);

@@ -1,8 +1,8 @@
 #ifndef TEST_ESCAPED_NEWLINES_H
 #define TEST_ESCAPED_NEWLINES_H
 
-#include "lines.h"
+#include "sized_str.h"
 
-struct chars rm_escaped_newlines(struct chars input);
+struct sstr rm_escaped_newlines(struct sstr input);
 
 #endif //TEST_ESCAPED_NEWLINES_H

@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-struct chars {
+struct sstr {
     unsigned char *chars;
     size_t n_chars;
 };

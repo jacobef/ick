@@ -2,7 +2,7 @@
 #include "escaped_newlines.h"
 #include "debug/malloc.h"
 
-struct chars rm_escaped_newlines(struct chars input) {
+struct sstr rm_escaped_newlines(struct sstr input) {
     if (input.n_chars < 2) return input;
     unsigned char *output_chars = MALLOC(input.n_chars);
     const unsigned char *reader = input.chars;
@@ -20,5 +20,5 @@ struct chars rm_escaped_newlines(struct chars input) {
     for (; reader != input.chars + input.n_chars; writer++, reader++) {
         *writer = *reader;
     }
-    return (struct chars){ .chars = output_chars, .n_chars = (size_t)(writer-output_chars) };
+    return (struct sstr){ .chars = output_chars, .n_chars = (size_t)(writer-output_chars) };
 }
