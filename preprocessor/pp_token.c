@@ -402,7 +402,7 @@ static enum pp_token_type get_token_type(struct preprocessing_token_detector det
     }
 }
 
-static bool token_is_str(struct preprocessing_token token, const unsigned char *str) {
+bool token_is_str(struct preprocessing_token token, const unsigned char *str) {
     for (const unsigned char *tok_it = token.first, *str_it = str; tok_it != token.last+1 && *str_it; tok_it++, str_it++) {
         if (*tok_it != *str_it) return false;
     }
@@ -450,7 +450,7 @@ pp_token_vec get_pp_tokens(struct sstr input) {
 
     struct preprocessing_token token; // scary
     struct preprocessing_token token_at_most_recent_match;
-    for (const unsigned char *c = input.chars; c != input.chars + input.n_chars; c++) {
+    for (const unsigned char *c = input.chars; c != input.chars + input.n; c++) {
         if (in_include_directive(tokens)) {
             token_detector = detect_preprocessing_token(token_detector, *c, EXCLUDE_STRING_LITERAL);
         } else {

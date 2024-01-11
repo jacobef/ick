@@ -1,7 +1,3 @@
-//
-// Created by Jacob Friedman on 12/22/23.
-//
-
 #ifndef ICK_RESULT_H
 #define ICK_RESULT_H
 #include <stdio.h>

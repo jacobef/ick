@@ -29,12 +29,12 @@ struct sstr replace_trigraphs(struct sstr input) {
     trigraphs_to_replacements['>'] = '}';
     trigraphs_to_replacements['-'] = '~';
 
-    unsigned char *output_chars = MALLOC(input.n_chars);
+    unsigned char *output_chars = MALLOC(input.n);
     const unsigned char *reader = input.chars;
     unsigned char *writer = output_chars;
     // 3 because that's the length of a trigraph
     // UB if input.n_chars<3 but the function should've returned before in that case
-    while(reader <= input.chars + input.n_chars - 3) {
+    while(reader <= input.chars + input.n - 3) {
         if (is_trigraph(reader)) {
             *writer = trigraphs_to_replacements[reader[2]];
             reader += 3; writer++;
@@ -44,8 +44,8 @@ struct sstr replace_trigraphs(struct sstr input) {
             reader++; writer++;
         }
     }
-    for (; reader != input.chars + input.n_chars; writer++, reader++) {
+    for (; reader != input.chars + input.n; writer++, reader++) {
         *writer = *reader;
     }
-    return (struct sstr){.chars = output_chars, .n_chars = (size_t)(writer - output_chars)};
+    return (struct sstr){.chars = output_chars, .n = (size_t)(writer - output_chars)};
 }

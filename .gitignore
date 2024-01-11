@@ -1,3 +1,5 @@
 *.gch
 cmake-build-debug/
 .idea/
+.cache/
+.vscode/

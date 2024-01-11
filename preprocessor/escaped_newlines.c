@@ -3,12 +3,12 @@
 #include "debug/malloc.h"
 
 struct sstr rm_escaped_newlines(struct sstr input) {
-    if (input.n_chars < 2) return input;
-    unsigned char *output_chars = MALLOC(input.n_chars);
+    if (input.n < 2) return input;
+    unsigned char *output_chars = MALLOC(input.n);
     const unsigned char *reader = input.chars;
     unsigned char *writer = output_chars;
     // The condition is UB if input.n_chars < 2, but the function should've returned before in that case
-    while (reader <= input.chars + input.n_chars - 2) {
+    while (reader <= input.chars + input.n - 2) {
         if (reader[0] == '\\' && reader[1] == '\n') {
             reader += 2;
         }
@@ -17,8 +17,8 @@ struct sstr rm_escaped_newlines(struct sstr input) {
             reader++; writer++;
         }
     }
-    for (; reader != input.chars + input.n_chars; writer++, reader++) {
+    for (; reader != input.chars + input.n; writer++, reader++) {
         *writer = *reader;
     }
-    return (struct sstr){ .chars = output_chars, .n_chars = (size_t)(writer-output_chars) };
+    return (struct sstr){ .chars = output_chars, .n = (size_t)(writer-output_chars) };
 }

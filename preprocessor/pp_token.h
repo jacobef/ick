@@ -8,7 +8,6 @@
 #include "sized_str.h"
 #include "detector.h"
 
-
 struct header_name_detector {
     enum detection_status status;
     bool in_quotes;
@@ -118,6 +117,8 @@ struct preprocessing_token {
     enum pp_token_type type;
     bool after_whitespace;
 };
+
+bool token_is_str(struct preprocessing_token token, const unsigned char *str);
 
 struct preprocessing_token_detector {
     struct header_name_detector header_name_detector;

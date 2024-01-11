@@ -1,7 +1,3 @@
-//
-// Created by Jacob Friedman on 12/17/23.
-//
-
 #ifndef ICK_MALLOC_H
 #define ICK_MALLOC_H
 #include <stddef.h>

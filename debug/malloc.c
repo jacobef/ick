@@ -1,7 +1,3 @@
-//
-// Created by Jacob Friedman on 12/17/23.
-//
-
 #include "debug/malloc.h"
 #include "debug/reminder.h"
 #include "driver/diagnostics.h"

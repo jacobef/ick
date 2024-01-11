@@ -9,6 +9,7 @@
 #include "preprocessor/pp_token.h"
 #include "preprocessor/parser.h"
 
+void test_next_chart(pp_token_vec tokens);
 char *ick_progname;
 
 int main(int argc, char *argv[]) {
@@ -54,16 +55,16 @@ int main(int argc, char *argv[]) {
     input_chars[input_len] = '\n'; // too much of a pain without this
 
     struct sstr trigraphs_replaced = replace_trigraphs(
-            (struct sstr){ .chars = input_chars, .n_chars = input_len + 1 }
+            (struct sstr){ .chars = input_chars, .n = input_len + 1 }
     );
     struct sstr logical_lines = rm_escaped_newlines(trigraphs_replaced);
-    fwrite(logical_lines.chars, sizeof(char), logical_lines.n_chars, output_file);
+    fwrite(logical_lines.chars, sizeof(char), logical_lines.n, output_file);
 
     fclose(output_file);
 
-    pp_token_vec pp_tokens = get_pp_tokens(logical_lines);
-    for (size_t i = 0; i < pp_tokens.n_elements; i++) {
-        struct preprocessing_token token = pp_tokens.arr[i];
+    pp_token_vec tokens = get_pp_tokens(logical_lines);
+    for (size_t i = 0; i < tokens.n_elements; i++) {
+        struct preprocessing_token token = tokens.arr[i];
         const unsigned char *it = token.first;
         while (it != token.last+1) {
             switch(*it) {
@@ -95,7 +96,8 @@ int main(int argc, char *argv[]) {
         printf("\n");
     }
 
-    pp_token_vec_free_internals(&pp_tokens);
+    test_next_chart(tokens);
+    pp_token_vec_free_internals(&tokens);
     FREE(input_chars);
     FREE(trigraphs_replaced.chars);
     FREE(logical_lines.chars);

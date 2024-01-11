@@ -5,7 +5,7 @@
 
 struct sstr {
     unsigned char *chars;
-    size_t n_chars;
+    size_t n;
 };
 
 #endif //TEST_LINES_H
