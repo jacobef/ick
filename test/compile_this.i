@@ -1,3 +1,5 @@
-a
-#include "stdio.h"
-#include <stdlib.h>:
+#ifdef A
+#ifdef B
+#endif
+#endif
+

@@ -18,7 +18,7 @@ void debug_free(void *ptr, const char *file, const char *func, int line);
 #else
 
 #define MALLOC(size) xmalloc(size)
-#define REALLOC(ptr, size) realloc(ptr, size)
+#define REALLOC(ptr, size) xrealloc(ptr, size)
 #define FREE(ptr) free(ptr)
 
 #endif

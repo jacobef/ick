@@ -9,17 +9,25 @@
 #include <string.h>
 #include <ctype.h>
 
+enum symbol_type {
+    NON_TERMINAL,
+    TERMINAL_FN,
+    TERMINAL_STR
+};
+
 struct symbol {
     union {
         struct production_rule *rule;
-        bool (*terminal)(struct preprocessing_token);
+        bool (*terminal_fn)(struct preprocessing_token);
+        unsigned char *terminal_str;
     } val;
-    bool is_terminal;
+    enum symbol_type type;
 };
 
 struct alternative {
     struct symbol *symbols;
     size_t n;
+    int tag;
 };
 
 struct production_rule {
@@ -28,80 +36,220 @@ struct production_rule {
     size_t n;
 };
 
-#define ALT_SYM(...) \
-    (struct alternative) { \
+#define ALT(_tag, ...) \
+    ((struct alternative) { \
         .symbols=(struct symbol[]) {__VA_ARGS__}, \
-        .n=sizeof((struct symbol[]){__VA_ARGS__})/sizeof(struct symbol) \
-    }
+        .n=sizeof((struct symbol[]){__VA_ARGS__})/sizeof(struct symbol), \
+        .tag=_tag      \
+    })
 
 #define PR_RULE(_name, ...) \
-    (struct production_rule) { \
+    ((struct production_rule) { \
         .name=_name, \
         .alternatives=(struct alternative[]) {__VA_ARGS__}, \
         .n=sizeof((struct alternative[]){__VA_ARGS__})/sizeof(struct alternative) \
-    }
-
-#define NT_SYM(_rule) \
-    (struct symbol) { \
-        .val.rule=&(_rule), \
-        .is_terminal=false \
-    }
-
-#define T_SYM(_fn) \
-    (struct symbol) { \
-        .val.terminal=_fn, \
-        .is_terminal=true \
-    }
-
-#define EMPTY_ALT \
-    ((struct alternative) { \
-        .symbols=(struct symbol[]) { 0 }, \
-        .n=0 \
     })
 
-#define OPT(_rule) PR_RULE(#_rule "_opt", ALT_SYM(NT_SYM(_rule)), EMPTY_ALT)
+#define NT_SYM(_rule) \
+    ((struct symbol) { \
+        .val.rule=&(_rule), \
+        .type=NON_TERMINAL \
+    })
 
+#define T_SYM_FN(_fn) \
+    ((struct symbol) { \
+        .val.terminal_fn=_fn, \
+        .type=TERMINAL_FN \
+    })
 
-static bool match_any_token(__attribute__((unused)) struct preprocessing_token token) {
-    return true;
+#define T_SYM_STR(_str) \
+    ((struct symbol) { \
+        .val.terminal_str=(unsigned char*)(_str), \
+        .type=TERMINAL_STR \
+    })
+
+#define EMPTY_ALT(_tag) \
+    ((struct alternative) { \
+        .symbols=(struct symbol[]) { 0 }, \
+        .n=0, \
+        .tag=_tag       \
+    })
+
+enum opt_tag { OPT_ONE, OPT_NONE };
+#define OPT(_rule) PR_RULE(#_rule "_opt", ALT(OPT_ONE, NT_SYM(_rule)), EMPTY_ALT(OPT_NONE))
+
+static bool match_preprocessing_token(__attribute__((unused)) struct preprocessing_token token) {
+    return !token_is_str(token, (unsigned char*)"\n");
 }
 
 static bool match_lparen(struct preprocessing_token token) {
     return token_is_str(token, (unsigned char*)"(") && !token.after_whitespace;
 }
 
-static bool match_new_line(struct preprocessing_token token) {
-    return token_is_str(token, (unsigned char*)"\n");
+static bool match_identifier(struct preprocessing_token token) {
+    return token.type == IDENTIFIER;
 }
 
+// Forward Declarations
+static struct production_rule preprocessing_file;
+static struct production_rule group_opt;
+static struct production_rule group;
+static struct production_rule group_part;
+static struct production_rule if_section;
+static struct production_rule if_group;
+static struct production_rule elif_groups;
+static struct production_rule elif_group;
+static struct production_rule else_group;
+static struct production_rule else_group_opt;
+static struct production_rule endif_line;
+static struct production_rule control_line;
+static struct production_rule text_line;
+static struct production_rule non_directive;
+static struct production_rule lparen;
+static struct production_rule replacement_list;
+static struct production_rule pp_tokens;
+static struct production_rule pp_tokens_opt;
+static struct production_rule identifier_list;
+static struct production_rule identifier_list_opt;
+static struct production_rule identifier;
 
-static struct production_rule preprocessing_token = PR_RULE("preprocessing_token", ALT_SYM(T_SYM(match_any_token)));
+static struct production_rule constant_expression;
+static struct production_rule conditional_expression;
+static struct production_rule logical_or_expression;
+static struct production_rule logical_and_expression;
+static struct production_rule inclusive_or_expression;
+static struct production_rule exclusive_or_expression;
+static struct production_rule and_expression;
+static struct production_rule equality_expression;
+static struct production_rule relational_expression;
+static struct production_rule shift_expression;
+static struct production_rule additive_expression;
+static struct production_rule multiplicative_expression;
+static struct production_rule cast_expression;
+static struct production_rule unary_expression;
 
-static struct production_rule pp_tokens = PR_RULE("pp_tokens",
-        ALT_SYM(NT_SYM(preprocessing_token)),
-        ALT_SYM(NT_SYM(pp_tokens), NT_SYM(preprocessing_token)));
+static struct production_rule rule_preprocessing_token;
 
- static struct production_rule pp_tokens_opt = OPT(pp_tokens);
+#define NO_TAG -1
 
- static struct production_rule lparen = PR_RULE("lparen", ALT_SYM(T_SYM(match_lparen)));
+// preprocessing-file: group_opt
+static struct production_rule preprocessing_file = PR_RULE("preprocessing-file", ALT(NO_TAG, NT_SYM(group_opt)));
 
- static struct production_rule new_line = PR_RULE("new_line", ALT_SYM(T_SYM(match_new_line)));
-//
-// static struct production_rule text_line = PR_1_ALT("text_line", ((struct alternative) {
-//     .symbols=(struct symbol[]) {
-//         NT_SYM(pp_tokens_opt),
-//         NT_SYM(new_line)
-//     },
-//     .n=2
-// }));
-//
-//
-// static struct production_rule non_directive = PR_1_ALT("non_directive", ((struct alternative) {
-//     .symbols=(struct symbol[]) {
-//         NT_SYM(pp_tokens),
-//         NT_SYM(new_line)
-//     },
-//     .n=2
-// }));
+static struct production_rule group_opt = OPT(group);
+
+// group: group-part group group-part
+enum group_tag { GROUP_ONE_PART, GROUP_MULTI_PART };
+static struct production_rule group = PR_RULE("group",
+                                              ALT(GROUP_ONE_PART, NT_SYM(group_part)),
+                                              ALT(GROUP_MULTI_PART, NT_SYM(group), NT_SYM(group_part)));
+
+// group-part: if-section control-line text-line # non-directive
+enum group_part_tag { GROUP_PART_IF, GROUP_PART_CONTROL, GROUP_PART_TEXT, GROUP_PART_NON_DIRECTIVE };
+static struct production_rule group_part = PR_RULE("group-part",
+                                                   ALT(GROUP_PART_IF, NT_SYM(if_section)),
+                                                   ALT(GROUP_PART_CONTROL, NT_SYM(control_line)),
+                                                   ALT(GROUP_PART_TEXT, NT_SYM(text_line)),
+                                                   ALT(GROUP_PART_NON_DIRECTIVE, NT_SYM(non_directive)));
+
+// if-section: if-group elif-groups_opt else-group_opt endif-line
+static struct production_rule if_section = PR_RULE("if-section",
+                                                   ALT(NO_TAG, NT_SYM(if_group), /*NT_SYM(elif_groups),*/ NT_SYM(else_group_opt), NT_SYM(endif_line)));
+
+// if-group: # if constant-expression new-line group_opt
+//           # ifdef identifier new-line group_opt
+//           # ifndef identifier new-line group_opt
+enum if_group_tag { IF_GROUP_IF, IF_GROUP_IFDEF, IF_GROUP_IFNDEF };
+static struct production_rule if_group = PR_RULE("if-group",
+//                                                 ALT(T_SYM_STR("#"), T_SYM_STR("if"), NT_SYM(constant_expression), T_SYM_STR("\n"), NT_SYM(group_opt)),
+                                                 ALT(IF_GROUP_IFDEF, T_SYM_STR("#"), T_SYM_STR("ifdef"), NT_SYM(identifier), T_SYM_STR("\n"), NT_SYM(group_opt)),
+                                                 ALT(IF_GROUP_IFNDEF, T_SYM_STR("#"), T_SYM_STR("ifndef"), NT_SYM(identifier), T_SYM_STR("\n"), NT_SYM(group_opt)));
+
+//// elif-groups: elif-group
+////              elif-groups elif-group
+//static struct production_rule elif_groups = PR_RULE("elif_groups",
+//                                                    ALT(NT_SYM(elif_group)),
+//                                                    ALT(NT_SYM(elif_groups), NT_SYM(elif_group)));
+
+//// elif-group: # elif constant-expression new-line group_opt
+//static struct production_rule elif_group = PR_RULE("elif_group",
+//                                                   ALT(T_SYM_STR("#"), T_SYM_STR("elif"), NT_SYM(constant_expression), T_SYM_STR("\n"), NT_SYM(group_opt)));
+
+// else-group: # else new-line group_opt
+static struct production_rule else_group = PR_RULE("else-group",
+                                                   ALT(NO_TAG, T_SYM_STR("#"), T_SYM_STR("else"), T_SYM_STR("\n"), NT_SYM(group_opt)));
+static struct production_rule else_group_opt = OPT(else_group);
+
+// endif-line: # endif new-line
+static struct production_rule endif_line = PR_RULE("endif-line",
+                                                   ALT(NO_TAG, T_SYM_STR("#"), T_SYM_STR("endif"), T_SYM_STR("\n")));
+
+// control-line:
+// # include pp-tokens new-line
+// # define identifier replacement-list new-line
+// # define identifier lparen identifier-list_opt ) replacement-list new-line
+// # define identifier lparen ... ) replacement-list new-line
+// # define identifier lparen identifier-list , ... ) replacement-list new-line
+// # undef identifier new-line
+// # line pp-tokens new-line
+// # error pp-tokens_opt new-line
+// # pragma pp-tokens_opt new-line
+// # new-line
+enum control_line_tag {
+    CONTROL_LINE_INCLUDE,
+    CONTROL_LINE_DEFINE_OBJECT_LIKE,
+    CONTROL_LINE_DEFINE_FUNCTION_LIKE_NO_VARARGS,
+    CONTROL_LINE_DEFINE_FUNCTION_LIKE_ONLY_VARARGS,
+    CONTROL_LINE_DEFINE_FUNCTION_LIKE_MIXED_ARGS,
+    CONTROL_LINE_UNDEF,
+    CONTROL_LINE_LINE,
+    CONTROL_LINE_ERROR,
+    CONTROL_LINE_PRAGMA,
+    CONTROL_LINE_EMPTY
+};
+static struct production_rule control_line = PR_RULE("control-line",
+     ALT(CONTROL_LINE_INCLUDE, T_SYM_STR("#"), T_SYM_STR("include"), NT_SYM(pp_tokens), T_SYM_STR("\n")),
+     ALT(CONTROL_LINE_DEFINE_OBJECT_LIKE, T_SYM_STR("#"), T_SYM_STR("define"), NT_SYM(identifier), NT_SYM(replacement_list), T_SYM_STR("\n")),
+     ALT(CONTROL_LINE_DEFINE_FUNCTION_LIKE_NO_VARARGS, T_SYM_STR("#"), T_SYM_STR("define"), NT_SYM(identifier), NT_SYM(lparen), NT_SYM(identifier_list_opt), T_SYM_STR(")"), NT_SYM(replacement_list), T_SYM_STR("\n")),
+     ALT(CONTROL_LINE_DEFINE_FUNCTION_LIKE_ONLY_VARARGS, T_SYM_STR("#"), T_SYM_STR("define"), NT_SYM(identifier), NT_SYM(lparen), T_SYM_STR("..."), T_SYM_STR(")"), NT_SYM(replacement_list), T_SYM_STR("\n")),
+     ALT(CONTROL_LINE_DEFINE_FUNCTION_LIKE_MIXED_ARGS, T_SYM_STR("#"), T_SYM_STR("define"), NT_SYM(identifier), NT_SYM(lparen), NT_SYM(identifier_list), T_SYM_STR(","), T_SYM_STR("..."), T_SYM_STR(")"), NT_SYM(replacement_list), T_SYM_STR("\n")),
+     ALT(CONTROL_LINE_UNDEF, T_SYM_STR("#"), T_SYM_STR("undef"), NT_SYM(identifier), T_SYM_STR("\n")),
+     ALT(CONTROL_LINE_LINE, T_SYM_STR("#"), T_SYM_STR("line"), NT_SYM(pp_tokens), T_SYM_STR("\n")),
+     ALT(CONTROL_LINE_ERROR, T_SYM_STR("#"), T_SYM_STR("error"), NT_SYM(pp_tokens_opt), T_SYM_STR("\n")),
+     ALT(CONTROL_LINE_PRAGMA, T_SYM_STR("#"), T_SYM_STR("pragma"), NT_SYM(pp_tokens_opt), T_SYM_STR("\n")),
+     ALT(CONTROL_LINE_EMPTY, T_SYM_STR("#"), T_SYM_STR("\n")));
+
+// text-line: pp-tokens_opt new-line
+static struct production_rule text_line = PR_RULE("text-line", ALT(NO_TAG, NT_SYM(pp_tokens_opt), T_SYM_STR("\n")));
+
+// non-directive: pp-tokens new-line
+static struct production_rule non_directive = PR_RULE("non-directive",
+                                                      ALT(NO_TAG, NT_SYM(pp_tokens), T_SYM_STR("\n")));
+
+// lparen: a ( character not immediately preceded by white-space
+static struct production_rule lparen = PR_RULE("lparen", ALT(NO_TAG, T_SYM_FN(match_lparen)));
+
+// replacement-list: pp-tokens_opt
+static struct production_rule replacement_list = PR_RULE("replacement-list", ALT(NO_TAG, NT_SYM(pp_tokens_opt)));
+
+// pp-tokens: preprocessing-token pp-tokens preprocessing-token
+enum pp_tokens_tag { PP_TOKENS_ONE, PP_TOKENS_MULTI };
+static struct production_rule pp_tokens = PR_RULE("pp-tokens",
+                                                  ALT(PP_TOKENS_ONE, NT_SYM(rule_preprocessing_token)),
+                                                  ALT(PP_TOKENS_MULTI, NT_SYM(pp_tokens), NT_SYM(rule_preprocessing_token)));
+
+static struct production_rule pp_tokens_opt = OPT(pp_tokens);
+
+static struct production_rule rule_preprocessing_token = PR_RULE("preprocessing-token", ALT(NO_TAG, T_SYM_FN(match_preprocessing_token)));
+
+// identifier-list:
+//      identifier
+//      identifier-list , identifier
+enum identifier_list_tag { IDENTIFIER_LIST_ONE, IDENTIFIER_LIST_MULTI };
+static struct production_rule identifier_list = PR_RULE("identifier-list",
+                                                        ALT(IDENTIFIER_LIST_ONE, NT_SYM(identifier)),
+                                                        ALT(IDENTIFIER_LIST_MULTI, NT_SYM(identifier_list), T_SYM_STR(","), NT_SYM(identifier)));
+static struct production_rule identifier_list_opt = OPT(identifier_list);
+
+static struct production_rule identifier = PR_RULE("identifier", ALT(NO_TAG, T_SYM_FN(match_identifier)));
 
 #endif //ICK_PARSER_H
