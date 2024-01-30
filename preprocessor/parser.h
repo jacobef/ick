@@ -90,6 +90,25 @@ static bool match_identifier(struct preprocessing_token token) {
     return token.type == IDENTIFIER;
 }
 
+static bool match_non_hashtag(struct preprocessing_token token) {
+    return !token_is_str(token, (unsigned char*)"#");
+}
+
+static bool match_non_directive_name(struct preprocessing_token token) {
+    return !token_is_str(token, (unsigned char*)"define") &&
+           !token_is_str(token, (unsigned char*)"undef") &&
+           !token_is_str(token, (unsigned char*)"if") &&
+           !token_is_str(token, (unsigned char*)"ifdef") &&
+           !token_is_str(token, (unsigned char*)"ifndef") &&
+           !token_is_str(token, (unsigned char*)"elif") &&
+           !token_is_str(token, (unsigned char*)"else") &&
+           !token_is_str(token, (unsigned char*)"endif") &&
+           !token_is_str(token, (unsigned char*)"include") &&
+           !token_is_str(token, (unsigned char*)"line") &&
+           !token_is_str(token, (unsigned char*)"error") &&
+           !token_is_str(token, (unsigned char*)"pragma");
+}
+
 // Forward Declarations
 static struct production_rule preprocessing_file;
 static struct production_rule group_opt;
@@ -103,7 +122,12 @@ static struct production_rule else_group;
 static struct production_rule else_group_opt;
 static struct production_rule endif_line;
 static struct production_rule control_line;
+static struct production_rule non_hashtag;
+static struct production_rule tokens_not_starting_with_hashtag;
+static struct production_rule tokens_not_starting_with_hashtag_opt;
 static struct production_rule text_line;
+static struct production_rule not_a_directive_name;
+static struct production_rule tokens_not_starting_with_directive_name;
 static struct production_rule non_directive;
 static struct production_rule lparen;
 static struct production_rule replacement_list;
@@ -219,11 +243,23 @@ static struct production_rule control_line = PR_RULE("control-line",
      ALT(CONTROL_LINE_EMPTY, T_SYM_STR("#"), T_SYM_STR("\n")));
 
 // text-line: pp-tokens_opt new-line
-static struct production_rule text_line = PR_RULE("text-line", ALT(NO_TAG, NT_SYM(pp_tokens_opt), T_SYM_STR("\n")));
+static struct production_rule non_hashtag = PR_RULE("non-hashtag", ALT(NO_TAG, T_SYM_FN(match_non_hashtag)));
+
+enum tokens_not_starting_with_hashtag_tag { TOKENS_NOT_STARTING_WITH_HASHTAG_ONE, TOKENS_NOT_STARTING_WITH_HASHTAG_MULTI };
+static struct production_rule tokens_not_starting_with_hashtag = PR_RULE("tokens-not-starting-with-hashtag",
+        ALT(TOKENS_NOT_STARTING_WITH_HASHTAG_ONE, NT_SYM(non_hashtag)),
+        ALT(TOKENS_NOT_STARTING_WITH_HASHTAG_MULTI, NT_SYM(tokens_not_starting_with_hashtag), NT_SYM(rule_preprocessing_token)));
+static struct production_rule tokens_not_starting_with_hashtag_opt = OPT(tokens_not_starting_with_hashtag);
+static struct production_rule text_line = PR_RULE("text-line", ALT(NO_TAG, NT_SYM(tokens_not_starting_with_hashtag_opt), T_SYM_STR("\n")));
 
 // non-directive: pp-tokens new-line
+enum tokens_not_starting_with_directive_name_tag { TOKENS_NOT_STARTING_WITH_DIRECTIVE_NAME_ONE, TOKENS_NOT_STARTING_WITH_DIRECTIVE_NAME_MULTI };
+static struct production_rule not_directive_name = PR_RULE("not-directive-name", ALT(NO_TAG, T_SYM_FN(match_non_directive_name)));
+static struct production_rule tokens_not_starting_with_directive_name = PR_RULE("tokens-not-starting-with-directive-name",
+        ALT(TOKENS_NOT_STARTING_WITH_DIRECTIVE_NAME_ONE, NT_SYM(not_directive_name)),
+        ALT(TOKENS_NOT_STARTING_WITH_DIRECTIVE_NAME_MULTI, NT_SYM(tokens_not_starting_with_directive_name), NT_SYM(rule_preprocessing_token)));
 static struct production_rule non_directive = PR_RULE("non-directive",
-                                                      ALT(NO_TAG, NT_SYM(pp_tokens), T_SYM_STR("\n")));
+                                                      ALT(NO_TAG, NT_SYM(tokens_not_starting_with_directive_name), T_SYM_STR("\n")));
 
 // lparen: a ( character not immediately preceded by white-space
 static struct production_rule lparen = PR_RULE("lparen", ALT(NO_TAG, T_SYM_FN(match_lparen)));
