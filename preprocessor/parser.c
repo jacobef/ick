@@ -38,9 +38,9 @@ static erule_p_vec predict(struct earley_rule rule, erule_p_vec *rule_chart) {
     } else {
         erule_p_vec out = get_earley_rules(rule.dot->val.rule, rule_chart);
         for (size_t i = 0; i < out.n_elements; i++) {
-            print_with_color(TEXT_COLOR_BLUE, "{predictor generated:} ");
+            print_with_color(TEXT_COLOR_LIGHT_BLUE, "{predictor} ");
             print_rule(*out.arr[i]);
-            print_with_color(TEXT_COLOR_CYAN, " {from this source:} ");
+            print_with_color(TEXT_COLOR_LIGHT_CYAN, " {from this source:} ");
             print_rule(rule);
             printf("\n");
         }
@@ -98,9 +98,9 @@ static void complete(struct earley_rule rule, erule_p_vec *out) {
             };
             if (!rule_is_duplicate(*out, *to_append)) {
                 erule_p_vec_append(out, to_append);
-                print_with_color(TEXT_COLOR_GREEN, "{completer generated:} ");
+                print_with_color(TEXT_COLOR_LIGHT_GREEN, "{completer} ");
                 print_rule(*to_append);
-                print_with_color(TEXT_COLOR_CYAN, " {from this source:} ");
+                print_with_color(TEXT_COLOR_LIGHT_CYAN, " {from this source:} ");
                 print_rule(rule);
                 printf("\n");
             }
@@ -119,7 +119,7 @@ static erule_p_vec *next_chart(erule_p_vec *old_chart, struct preprocessing_toke
             *to_append = (struct earley_rule) {
                     .lhs=rule.lhs, .rhs=rule.rhs, .dot=rule.dot+1, .origin_chart=rule.origin_chart, .completed_from=rule.completed_from
             };
-            print_with_color(TEXT_COLOR_YELLOW, "{scanner generated:} ");
+            print_with_color(TEXT_COLOR_YELLOW, "{scanner} ");
             print_rule(*to_append);
             printf("\n");
             erule_p_vec_append(out, to_append);
@@ -143,13 +143,13 @@ static void print_symbol(struct symbol sym) {
             printf("%s ", sym.val.rule->name);
             break;
         case TERMINAL_FN:
-            printf("(function) ");
+            printf("[function] ");
             break;
         case TERMINAL_STR:
             if (strcmp("\n", (const char*)sym.val.terminal_str) == 0) {
-                printf("(newline) ");
+                print_with_color(TEXT_COLOR_GREEN, "[newline] ");
             } else {
-                printf("'%s' ", sym.val.terminal_str);
+                print_with_color(TEXT_COLOR_GREEN, "'%s' ", sym.val.terminal_str);
             }
             break;
     }
@@ -159,12 +159,12 @@ static void print_rule(struct earley_rule rule) {
     printf("%s -> ", rule.lhs->name);
     for (size_t i = 0; i < rule.rhs.n; i++) {
         if (rule.dot == &rule.rhs.symbols[i]) {
-            printf("[dot] ");
+            print_with_color(TEXT_COLOR_LIGHT_RED, "O ");
         }
         print_symbol(rule.rhs.symbols[i]);
     }
     if (rule.dot == rule.rhs.symbols + rule.rhs.n) {
-        printf("[dot]");
+        print_with_color(TEXT_COLOR_LIGHT_RED, "O ");
     }
 }
 
@@ -208,7 +208,7 @@ void test_next_chart(pp_token_vec tokens) {
      };
      erule_p_vec_append(&initial_chart, S_rule);
 
-     printf("Initial Chart:\n");
+     print_with_color(TEXT_COLOR_LIGHT_RED, "\nInitial Chart:\n");
      print_chart(&initial_chart);
 
     for (size_t i = 0; i < initial_chart.n_elements; i++) {
@@ -218,8 +218,8 @@ void test_next_chart(pp_token_vec tokens) {
         }
         recursively_predict(rule, &initial_chart);
     }
-     printf("Amended Initial Chart:\n");
-     print_chart(&initial_chart);
+//     printf("Amended Initial Chart:\n");
+//     print_chart(&initial_chart);
 
      erule_p_vec *old_chart = &initial_chart;
      erule_p_vec *new_chart = &initial_chart;
