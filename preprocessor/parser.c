@@ -41,7 +41,7 @@ static erule_p_vec predict(struct earley_rule rule, erule_p_vec *rule_chart) {
         for (size_t i = 0; i < out.n_elements; i++) {
             print_with_color(TEXT_COLOR_LIGHT_BLUE, "{predictor} ");
             print_rule(*out.arr[i]);
-            print_with_color(TEXT_COLOR_LIGHT_CYAN, " {from this source:} ");
+            print_with_color(TEXT_COLOR_LIGHT_CYAN, " {source:} ");
             print_rule(rule);
             printf("\n");
         }
@@ -92,6 +92,9 @@ static bool check_terminal(struct symbol sym, struct preprocessing_token token) 
 }
 
 static void complete(struct earley_rule rule, erule_p_vec *out) {
+    if (!is_completed(rule)) {
+        return;
+    }
     for (size_t i = 0; i < rule.origin_chart->n_elements; i++) {
         struct earley_rule possible_origin = *rule.origin_chart->arr[i];
         if (!possible_origin.dot->is_terminal && !is_completed(possible_origin) && possible_origin.dot->val.rule == rule.lhs) {
@@ -107,12 +110,36 @@ static void complete(struct earley_rule rule, erule_p_vec *out) {
                 erule_p_vec_append(out, to_append);
                 print_with_color(TEXT_COLOR_LIGHT_GREEN, "{completer} ");
                 print_rule(*to_append);
-                print_with_color(TEXT_COLOR_LIGHT_CYAN, " {from this source:} ");
+                print_with_color(TEXT_COLOR_LIGHT_CYAN, " {source:} ");
                 print_rule(rule);
                 printf("\n");
             }
         }
     }
+}
+
+static void scan(struct earley_rule rule, struct preprocessing_token token, erule_p_vec *out) {
+    if (is_completed(rule) || !rule.dot->is_terminal || !check_terminal(*rule.dot, token)) {
+        return;
+    }
+    // Shallow copy the old rule into the new one
+    struct earley_rule *scanned_rule = MALLOC(sizeof(struct earley_rule));
+    memcpy(scanned_rule, &rule, sizeof(struct earley_rule));
+    // Deep copy the symbols over to the new rule
+    scanned_rule->rhs.symbols = MALLOC(sizeof(struct symbol) * rule.rhs.n);
+    memcpy(scanned_rule->rhs.symbols, rule.rhs.symbols, sizeof(struct symbol) * rule.rhs.n);
+    // Make the dot point to the new rule's symbols, in the same position as the old one, then advance it by 1
+    scanned_rule->dot = scanned_rule->rhs.symbols + (rule.dot - rule.rhs.symbols) + 1;
+    // Put the token in the terminal that was scanned over
+    (scanned_rule->dot - 1)->val.terminal.token = token;
+    // Mark that terminal as containing a token
+    (scanned_rule->dot - 1)->val.terminal.is_filled = true;
+
+    print_with_color(TEXT_COLOR_YELLOW, "{scanner} ");
+    print_rule(*scanned_rule);
+    printf("\n");
+
+    erule_p_vec_append(out, scanned_rule);
 }
 
 static erule_p_vec *next_chart(erule_p_vec *old_chart, struct preprocessing_token token) {
@@ -121,48 +148,12 @@ static erule_p_vec *next_chart(erule_p_vec *old_chart, struct preprocessing_toke
     // Scan
     for (size_t i = 0; i < old_chart->n_elements; i++) {
         struct earley_rule rule = *old_chart->arr[i];
-        if (!is_completed(rule) && rule.dot->is_terminal && check_terminal(*rule.dot, token)) {
-            struct earley_rule *to_append = MALLOC(sizeof(struct earley_rule));
-            struct alternative new_rhs = (struct alternative) {
-                .symbols=MALLOC(sizeof(struct symbol) * rule.rhs.n),
-                .n=rule.rhs.n,
-                .tag=rule.rhs.tag
-            };
-            struct symbol *new_dot = NULL;
-            for (size_t j = 0; j < rule.rhs.n; j++) {
-                if (&rule.rhs.symbols[j] == rule.dot) {
-                    new_rhs.symbols[j] = (struct symbol) {
-                        .val.terminal = {
-                                .matcher=rule.rhs.symbols[j].val.terminal.matcher,
-                                .type=rule.rhs.symbols[j].val.terminal.type,
-                                .token=token,
-                                .is_filled=true
-                        },
-                        .is_terminal = true
-                    };
-                    new_dot = &new_rhs.symbols[j] + 1;
-                } else {
-                    new_rhs.symbols[j] = rule.rhs.symbols[j];
-                }
-            }
-            if (new_dot == NULL) {
-                preprocessor_error(0, 0, 0, "Internal error: new_dot is NULL");
-            }
-            *to_append = (struct earley_rule) {
-                    .lhs=rule.lhs, .rhs=new_rhs, .dot=new_dot, .origin_chart=rule.origin_chart, .completed_from=rule.completed_from
-            };
-            print_with_color(TEXT_COLOR_YELLOW, "{scanner} ");
-            print_rule(*to_append);
-            printf("\n");
-            erule_p_vec_append(out, to_append);
-        }
+        scan(rule, token, out);
     }
-    // Complee and predict in a loop
+    // Complete and predict in a loop
     for (size_t i = 0; i < out->n_elements; i++) {
         struct earley_rule rule = *out->arr[i];
-        if (is_completed(rule)) {
-            complete(rule, out);
-        }
+        complete(rule, out);
         recursively_predict(rule, out);
     }
 
@@ -200,12 +191,12 @@ static void print_rule(struct earley_rule rule) {
     printf("%s -> ", rule.lhs->name);
     for (size_t i = 0; i < rule.rhs.n; i++) {
         if (rule.dot == &rule.rhs.symbols[i]) {
-            print_with_color(TEXT_COLOR_LIGHT_RED, "O ");
+            print_with_color(TEXT_COLOR_LIGHT_PURPLE, "• ");
         }
         print_symbol(rule.rhs.symbols[i]);
     }
     if (rule.dot == rule.rhs.symbols + rule.rhs.n) {
-        print_with_color(TEXT_COLOR_LIGHT_RED, "O ");
+        print_with_color(TEXT_COLOR_LIGHT_PURPLE, "• ");
     }
 }
 
@@ -254,9 +245,7 @@ void test_next_chart(pp_token_vec tokens) {
 
     for (size_t i = 0; i < initial_chart.n_elements; i++) {
         struct earley_rule rule = *initial_chart.arr[i];
-        if (is_completed(rule)) {
-            complete(rule, &initial_chart);
-        }
+        complete(rule, &initial_chart);
         recursively_predict(rule, &initial_chart);
     }
 //     printf("Amended Initial Chart:\n");
@@ -267,7 +256,7 @@ void test_next_chart(pp_token_vec tokens) {
      for (size_t i = 0; i < tokens.n_elements; i++) {
          struct preprocessing_token token = tokens.arr[i];
          print_with_color(TEXT_COLOR_RED, "\nChart after processing token %zu (", i);
-         set_color(TEXT_COLOR_MAGENTA);
+         set_color(TEXT_COLOR_GREEN);
          print_token(token);
          clear_color();
          print_with_color(TEXT_COLOR_RED, "):\n");
