@@ -9,19 +9,26 @@
 #include <string.h>
 #include <ctype.h>
 
-enum symbol_type {
-    NON_TERMINAL,
-    TERMINAL_FN,
-    TERMINAL_STR
+enum terminal_symbol_type {
+    TERMINAL_FN, TERMINAL_STR
+};
+
+struct terminal {
+    union {
+        bool (*fn)(struct preprocessing_token);
+        unsigned char *str;
+    } matcher;
+    enum terminal_symbol_type type;
+    struct preprocessing_token token;
+    bool is_filled;
 };
 
 struct symbol {
     union {
         struct production_rule *rule;
-        bool (*terminal_fn)(struct preprocessing_token);
-        unsigned char *terminal_str;
+        struct terminal terminal;
     } val;
-    enum symbol_type type;
+    bool is_terminal;
 };
 
 struct alternative {
@@ -36,36 +43,44 @@ struct production_rule {
     size_t n;
 };
 
-#define ALT(_tag, ...) \
-    ((struct alternative) { \
-        .symbols=(struct symbol[]) {__VA_ARGS__}, \
+#define ALT(_tag, ...)                                                   \
+    ((struct alternative) {                                              \
+        .symbols=(struct symbol[]) {__VA_ARGS__},                        \
         .n=sizeof((struct symbol[]){__VA_ARGS__})/sizeof(struct symbol), \
-        .tag=_tag      \
+        .tag=_tag                                                        \
     })
 
-#define PR_RULE(_name, ...) \
-    ((struct production_rule) { \
-        .name=_name, \
-        .alternatives=(struct alternative[]) {__VA_ARGS__}, \
+#define PR_RULE(_name, ...)                                                       \
+    ((struct production_rule) {                                                   \
+        .name=_name,                                                              \
+        .alternatives=(struct alternative[]) {__VA_ARGS__},                       \
         .n=sizeof((struct alternative[]){__VA_ARGS__})/sizeof(struct alternative) \
     })
 
-#define NT_SYM(_rule) \
-    ((struct symbol) { \
+#define NT_SYM(_rule)       \
+    ((struct symbol) {      \
         .val.rule=&(_rule), \
-        .type=NON_TERMINAL \
+        .is_terminal=false  \
     })
 
-#define T_SYM_FN(_fn) \
-    ((struct symbol) { \
-        .val.terminal_fn=_fn, \
-        .type=TERMINAL_FN \
+#define T_SYM_FN(_fn)          \
+    ((struct symbol) {         \
+        .val.terminal = {      \
+            .matcher.fn=_fn,   \
+            .type=TERMINAL_FN, \
+            .is_filled=false   \
+        },                     \
+        .is_terminal=true      \
     })
 
-#define T_SYM_STR(_str) \
-    ((struct symbol) { \
-        .val.terminal_str=(unsigned char*)(_str), \
-        .type=TERMINAL_STR \
+#define T_SYM_STR(_str)                        \
+    ((struct symbol) {                         \
+        .val.terminal = {                      \
+            .matcher.str=(unsigned char*)_str, \
+            .type=TERMINAL_STR,                \
+            .is_filled=false                   \
+        },                                     \
+        .is_terminal=true,                     \
     })
 
 #define EMPTY_ALT(_tag) \
@@ -173,7 +188,7 @@ static struct production_rule group_part = PR_RULE("group-part",
                                                    ALT(GROUP_PART_IF, NT_SYM(if_section)),
                                                    ALT(GROUP_PART_CONTROL, NT_SYM(control_line)),
                                                    ALT(GROUP_PART_TEXT, NT_SYM(text_line)),
-                                                   ALT(GROUP_PART_NON_DIRECTIVE, NT_SYM(non_directive)));
+                                                   ALT(GROUP_PART_NON_DIRECTIVE, T_SYM_STR("#"), NT_SYM(non_directive)));
 
 // if-section: if-group elif-groups_opt else-group_opt endif-line
 static struct production_rule if_section = PR_RULE("if-section",

@@ -1,4 +1,5 @@
 #include "preprocessor/parser.h"
+#include "preprocessor/diagnostics.h"
 #include "data_structures/vector.h"
 #include "debug/color_print.h"
 
@@ -31,7 +32,7 @@ static erule_p_vec get_earley_rules(struct production_rule *rule, erule_p_vec *o
 static void print_rule(struct earley_rule rule);
 
 static erule_p_vec predict(struct earley_rule rule, erule_p_vec *rule_chart) {
-    if (rule.dot == rule.rhs.symbols + rule.rhs.n || rule.dot->type != NON_TERMINAL) {
+    if (rule.dot == rule.rhs.symbols + rule.rhs.n || rule.dot->is_terminal) {
         erule_p_vec empty;
         erule_p_vec_init(&empty, 0);
         return empty;
@@ -50,7 +51,11 @@ static erule_p_vec predict(struct earley_rule rule, erule_p_vec *rule_chart) {
 
 static bool rule_is_duplicate(erule_p_vec rules, struct earley_rule rule) {
     for (size_t i = 0; i < rules.n_elements; i++) {
-        if (rule.lhs == rules.arr[i]->lhs && rule.dot == rules.arr[i]->dot && rule.origin_chart == rules.arr[i]->origin_chart) {
+        if (rule.lhs == rules.arr[i]->lhs // Left hand rule is the same
+        && rule.rhs.tag == rules.arr[i]->rhs.tag  // Alternative is the same
+        && rule.dot - rule.rhs.symbols == rules.arr[i]->dot - rules.arr[i]->rhs.symbols // Dot is in the same place
+        && rule.origin_chart == rules.arr[i]->origin_chart // Same origin
+        ) {
             return true;
         }
     }
@@ -74,20 +79,22 @@ static bool is_completed(struct earley_rule rule) {
 }
 
 static bool check_terminal(struct symbol sym, struct preprocessing_token token) {
-    switch (sym.type) {
-        case TERMINAL_FN:
-            return sym.val.terminal_fn(token);
-        case TERMINAL_STR:
-            return token_is_str(token, sym.val.terminal_str);
-        case NON_TERMINAL:
-            return false;
+    if (sym.is_terminal) {
+        switch(sym.val.terminal.type) {
+            case TERMINAL_FN:
+                return sym.val.terminal.matcher.fn(token);
+            case TERMINAL_STR:
+                return token_is_str(token, sym.val.terminal.matcher.str);
+        }
+    } else {
+        return false;
     }
 }
 
 static void complete(struct earley_rule rule, erule_p_vec *out) {
     for (size_t i = 0; i < rule.origin_chart->n_elements; i++) {
         struct earley_rule possible_origin = *rule.origin_chart->arr[i];
-        if (possible_origin.dot->type == NON_TERMINAL && !is_completed(possible_origin) && possible_origin.dot->val.rule == rule.lhs) {
+        if (!possible_origin.dot->is_terminal && !is_completed(possible_origin) && possible_origin.dot->val.rule == rule.lhs) {
             erule_p_vec new_completed_from;
             erule_p_vec_init(&new_completed_from, possible_origin.completed_from.n_elements + 1);
             erule_p_vec_append_all(&new_completed_from, &possible_origin.completed_from);
@@ -114,10 +121,35 @@ static erule_p_vec *next_chart(erule_p_vec *old_chart, struct preprocessing_toke
     // Scan
     for (size_t i = 0; i < old_chart->n_elements; i++) {
         struct earley_rule rule = *old_chart->arr[i];
-        if (!is_completed(rule) && check_terminal(*rule.dot, token)) {
+        if (!is_completed(rule) && rule.dot->is_terminal && check_terminal(*rule.dot, token)) {
             struct earley_rule *to_append = MALLOC(sizeof(struct earley_rule));
+            struct alternative new_rhs = (struct alternative) {
+                .symbols=MALLOC(sizeof(struct symbol) * rule.rhs.n),
+                .n=rule.rhs.n,
+                .tag=rule.rhs.tag
+            };
+            struct symbol *new_dot = NULL;
+            for (size_t j = 0; j < rule.rhs.n; j++) {
+                if (&rule.rhs.symbols[j] == rule.dot) {
+                    new_rhs.symbols[j] = (struct symbol) {
+                        .val.terminal = {
+                                .matcher=rule.rhs.symbols[j].val.terminal.matcher,
+                                .type=rule.rhs.symbols[j].val.terminal.type,
+                                .token=token,
+                                .is_filled=true
+                        },
+                        .is_terminal = true
+                    };
+                    new_dot = &new_rhs.symbols[j] + 1;
+                } else {
+                    new_rhs.symbols[j] = rule.rhs.symbols[j];
+                }
+            }
+            if (new_dot == NULL) {
+                preprocessor_error(0, 0, 0, "Internal error: new_dot is NULL");
+            }
             *to_append = (struct earley_rule) {
-                    .lhs=rule.lhs, .rhs=rule.rhs, .dot=rule.dot+1, .origin_chart=rule.origin_chart, .completed_from=rule.completed_from
+                    .lhs=rule.lhs, .rhs=new_rhs, .dot=new_dot, .origin_chart=rule.origin_chart, .completed_from=rule.completed_from
             };
             print_with_color(TEXT_COLOR_YELLOW, "{scanner} ");
             print_rule(*to_append);
@@ -125,7 +157,7 @@ static erule_p_vec *next_chart(erule_p_vec *old_chart, struct preprocessing_toke
             erule_p_vec_append(out, to_append);
         }
     }
-    // Complete and predict in a loop
+    // Complee and predict in a loop
     for (size_t i = 0; i < out->n_elements; i++) {
         struct earley_rule rule = *out->arr[i];
         if (is_completed(rule)) {
@@ -137,21 +169,30 @@ static erule_p_vec *next_chart(erule_p_vec *old_chart, struct preprocessing_toke
     return out;
 }
 
+static void print_token(struct preprocessing_token token);
+
 static void print_symbol(struct symbol sym) {
-    switch (sym.type) {
-        case NON_TERMINAL:
-            printf("%s ", sym.val.rule->name);
-            break;
-        case TERMINAL_FN:
-            printf("[function] ");
-            break;
-        case TERMINAL_STR:
-            if (strcmp("\n", (const char*)sym.val.terminal_str) == 0) {
-                print_with_color(TEXT_COLOR_GREEN, "[newline] ");
-            } else {
-                print_with_color(TEXT_COLOR_GREEN, "'%s' ", sym.val.terminal_str);
-            }
-            break;
+
+    if (sym.is_terminal) {
+        switch (sym.val.terminal.type) {
+            case TERMINAL_FN:
+                printf("[function] ");
+                break;
+            case TERMINAL_STR:
+                if (strcmp("\n", (const char *)sym.val.terminal.matcher.str) == 0) {
+                    print_with_color(TEXT_COLOR_GREEN, "[newline] ");
+                } else {
+                    print_with_color(TEXT_COLOR_GREEN, "'%s' ", sym.val.terminal.matcher.str);
+                }
+                break;
+        }
+        if (sym.val.terminal.is_filled) {
+            printf("(filled: ");
+            print_token(sym.val.terminal.token);
+            printf(") ");
+        }
+    } else {
+        printf("%s ", sym.val.rule->name);
     }
 }
 
