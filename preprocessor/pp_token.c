@@ -478,6 +478,11 @@ pp_token_vec get_pp_tokens(struct sstr input) {
         }
     }
 
+    if (match_exists) {
+        token_at_most_recent_match.type = get_token_type(detector_at_most_recent_match);
+        pp_token_vec_append(&tokens, token_at_most_recent_match);
+    }
+
     pp_token_vec tokens_without_comments;
     pp_token_vec_init(&tokens_without_comments, tokens.n_elements);
     for (size_t i = 0; i < tokens.n_elements; i++) {

@@ -1,9 +1,16 @@
 #include <stdlib.h>
 #include "escaped_newlines.h"
+
+#include <string.h>
+
 #include "debug/malloc.h"
 
 struct sstr rm_escaped_newlines(struct sstr input) {
-    if (input.n < 2) return input;
+    if (input.n < 2) {
+        struct sstr out = { .chars = MALLOC(input.n), .n = input.n };
+        memcpy(out.chars, input.chars, input.n);
+        return out;
+    };
     unsigned char *output_chars = MALLOC(input.n);
     const unsigned char *reader = input.chars;
     unsigned char *writer = output_chars;

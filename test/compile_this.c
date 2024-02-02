@@ -1,4 +1,1 @@
-#ifdef A
-#ifdef B
-#endif
-#endif
+#define HI(A)

@@ -3,16 +3,6 @@
 #include "data_structures/vector.h"
 #include "debug/color_print.h"
 
-typedef struct earley_rule *erule_p;
-DEFINE_VEC_TYPE_AND_FUNCTIONS(erule_p)
-
-struct earley_rule {
-    struct production_rule *lhs;
-    struct alternative rhs;
-    struct symbol *dot;
-    erule_p_vec *origin_chart;
-    erule_p_vec completed_from;
-};
 
 static erule_p_vec get_earley_rules(struct production_rule *rule, erule_p_vec *origin) {
     erule_p_vec out;
@@ -91,16 +81,17 @@ static bool check_terminal(struct symbol sym, struct preprocessing_token token) 
     }
 }
 
-static void complete(struct earley_rule rule, erule_p_vec *out) {
-    if (!is_completed(rule)) {
+static void complete(struct earley_rule *rule, erule_p_vec *out) {
+    if (!is_completed(*rule)) {
         return;
     }
-    for (size_t i = 0; i < rule.origin_chart->n_elements; i++) {
-        struct earley_rule possible_origin = *rule.origin_chart->arr[i];
-        if (!possible_origin.dot->is_terminal && !is_completed(possible_origin) && possible_origin.dot->val.rule == rule.lhs) {
+    for (size_t i = 0; i < rule->origin_chart->n_elements; i++) {
+        struct earley_rule possible_origin = *rule->origin_chart->arr[i];
+        if (!possible_origin.dot->is_terminal && !is_completed(possible_origin) && possible_origin.dot->val.rule == rule->lhs) {
             erule_p_vec new_completed_from;
             erule_p_vec_init(&new_completed_from, possible_origin.completed_from.n_elements + 1);
             erule_p_vec_append_all(&new_completed_from, &possible_origin.completed_from);
+            erule_p_vec_append(&new_completed_from, rule);
             struct earley_rule *to_append = MALLOC(sizeof(struct earley_rule));
             *to_append = (struct earley_rule) {
                     .lhs=possible_origin.lhs, .rhs=possible_origin.rhs, .dot=possible_origin.dot + 1,
@@ -111,7 +102,7 @@ static void complete(struct earley_rule rule, erule_p_vec *out) {
                 print_with_color(TEXT_COLOR_LIGHT_GREEN, "{completer} ");
                 print_rule(*to_append);
                 print_with_color(TEXT_COLOR_LIGHT_CYAN, " {source:} ");
-                print_rule(rule);
+                print_rule(*rule);
                 printf("\n");
             }
         }
@@ -147,14 +138,13 @@ static erule_p_vec *next_chart(erule_p_vec *old_chart, struct preprocessing_toke
     erule_p_vec_init(out, 0);
     // Scan
     for (size_t i = 0; i < old_chart->n_elements; i++) {
-        struct earley_rule rule = *old_chart->arr[i];
-        scan(rule, token, out);
+        scan(*old_chart->arr[i], token, out);
     }
     // Complete and predict in a loop
     for (size_t i = 0; i < out->n_elements; i++) {
-        struct earley_rule rule = *out->arr[i];
+        struct earley_rule *rule = out->arr[i];
         complete(rule, out);
-        recursively_predict(rule, out);
+        recursively_predict(*rule, out);
     }
 
     return out;
@@ -179,7 +169,9 @@ static void print_symbol(struct symbol sym) {
         }
         if (sym.val.terminal.is_filled) {
             printf("(filled: ");
+            set_color(TEXT_COLOR_GREEN);
             print_token(sym.val.terminal.token);
+            clear_color();
             printf(") ");
         }
     } else {
@@ -200,7 +192,7 @@ static void print_rule(struct earley_rule rule) {
     }
 }
 
-static void print_chart(erule_p_vec *chart) {
+void print_chart(erule_p_vec *chart) {
     for (size_t i = 0; i < chart->n_elements; i++) {
         struct earley_rule rule = *chart->arr[i];
         print_rule(rule);
@@ -227,41 +219,90 @@ static void print_token(struct preprocessing_token token) {
     }
 }
 
-void test_next_chart(pp_token_vec tokens) {
-     erule_p_vec initial_chart;
-     erule_p_vec_init(&initial_chart, 1);
-     erule_p_vec empty;
-     erule_p_vec_init(&empty, 0);
+erule_p_vec_p_vec make_charts(pp_token_vec tokens) {
+    erule_p_vec_p_vec out;
+    erule_p_vec_p_vec_init(&out, 0);
 
-     struct earley_rule *S_rule = MALLOC(sizeof(struct earley_rule));
+    erule_p_vec *initial_chart = MALLOC(sizeof(struct erule_p_vec));
+    erule_p_vec_init(initial_chart, 1);
+    erule_p_vec_p_vec_append(&out, initial_chart);
 
-     *S_rule = (struct earley_rule){
-         .lhs=&preprocessing_file, .rhs=preprocessing_file.alternatives[0], .dot=preprocessing_file.alternatives[0].symbols, .origin_chart=&initial_chart, .completed_from=empty
-     };
-     erule_p_vec_append(&initial_chart, S_rule);
+    erule_p_vec empty;
+    erule_p_vec_init(&empty, 0);
 
-     print_with_color(TEXT_COLOR_LIGHT_RED, "\nInitial Chart:\n");
-     print_chart(&initial_chart);
+    struct earley_rule *S_rule = MALLOC(sizeof(struct earley_rule));
 
-    for (size_t i = 0; i < initial_chart.n_elements; i++) {
-        struct earley_rule rule = *initial_chart.arr[i];
-        complete(rule, &initial_chart);
-        recursively_predict(rule, &initial_chart);
+    *S_rule = (struct earley_rule){
+        .lhs=&preprocessing_file, .rhs=preprocessing_file.alternatives[0], .dot=preprocessing_file.alternatives[0].symbols, .origin_chart=initial_chart, .completed_from=empty
+    };
+    erule_p_vec_append(initial_chart, S_rule);
+
+    print_with_color(TEXT_COLOR_LIGHT_RED, "\nInitial Chart:\n");
+    print_chart(initial_chart);
+
+    for (size_t i = 0; i < initial_chart->n_elements; i++) {
+        struct earley_rule *rule = initial_chart->arr[i];
+        complete(rule, initial_chart);
+        recursively_predict(*rule, initial_chart);
     }
-//     printf("Amended Initial Chart:\n");
-//     print_chart(&initial_chart);
+    //     printf("Amended Initial Chart:\n");
+    //     print_chart(&initial_chart);
 
-     erule_p_vec *old_chart = &initial_chart;
-     erule_p_vec *new_chart = &initial_chart;
-     for (size_t i = 0; i < tokens.n_elements; i++) {
-         struct preprocessing_token token = tokens.arr[i];
-         print_with_color(TEXT_COLOR_RED, "\nChart after processing token %zu (", i);
-         set_color(TEXT_COLOR_GREEN);
-         print_token(token);
-         clear_color();
-         print_with_color(TEXT_COLOR_RED, "):\n");
-         new_chart = next_chart(old_chart, tokens.arr[i]);
-         old_chart = new_chart;
-//         print_chart(new_chart);
-     }
+    erule_p_vec *old_chart = initial_chart;
+    erule_p_vec *new_chart;
+    for (size_t i = 0; i < tokens.n_elements; i++) {
+        struct preprocessing_token token = tokens.arr[i];
+        print_with_color(TEXT_COLOR_RED, "\nChart after processing token %zu (", i);
+        set_color(TEXT_COLOR_GREEN);
+        print_token(token);
+        clear_color();
+        print_with_color(TEXT_COLOR_RED, "):\n");
+        new_chart = next_chart(old_chart, tokens.arr[i]);
+        erule_p_vec_p_vec_append(&out, new_chart);
+        old_chart = new_chart;
+        //         print_chart(new_chart);
+    }
+    printf("\n");
+
+    return out;
+}
+
+struct earley_rule *get_tree_root(erule_p_vec final_chart) {
+    for (size_t i = 0; i < final_chart.n_elements; i++) {
+        struct earley_rule *rule = final_chart.arr[i];
+        if (rule->lhs == &preprocessing_file && is_completed(*rule)) {
+            return rule;
+        }
+    }
+    return NULL;
+}
+
+void print_tree(struct earley_rule *root, size_t indent) {
+    if (root == NULL) {
+        printf("No tree to print.\n");
+        return;
+    }
+    for (size_t i = 0; i < indent; i++) {
+        printf("\t");
+    }
+    print_rule(*root);
+    printf("\n");
+    for (size_t i = 0; i < root->completed_from.n_elements; i++) {
+        print_tree(root->completed_from.arr[i], indent+1);
+    }
+}
+
+void test_parser(pp_token_vec tokens) {
+    erule_p_vec_p_vec charts = make_charts(tokens);
+    for (size_t i = 0; i < charts.n_elements; i++) {
+        print_with_color(TEXT_COLOR_LIGHT_RED, "Chart %zu:\n", i);
+        print_chart(charts.arr[i]);
+    }
+    printf("\n");
+    struct earley_rule *root = get_tree_root(*charts.arr[charts.n_elements-1]);
+    print_with_color(TEXT_COLOR_LIGHT_RED, "Tree root:\n");
+    print_rule(*root);
+    printf("\n");
+    print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");
+    print_tree(root, 0);
 }

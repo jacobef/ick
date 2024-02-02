@@ -8,8 +8,8 @@
 #include "preprocessor/escaped_newlines.h"
 #include "preprocessor/pp_token.h"
 #include "preprocessor/parser.h"
+#include "debug/color_print.h"
 
-void test_next_chart(pp_token_vec tokens);
 char *ick_progname;
 
 int main(int argc, char *argv[]) {
@@ -96,7 +96,8 @@ int main(int argc, char *argv[]) {
         printf("\n");
     }
 
-    test_next_chart(tokens);
+    test_parser(tokens);
+
     pp_token_vec_free_internals(&tokens);
     FREE(input_chars);
     FREE(trigraphs_replaced.chars);

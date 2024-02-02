@@ -43,6 +43,25 @@ struct production_rule {
     size_t n;
 };
 
+typedef struct earley_rule *erule_p;
+DEFINE_VEC_TYPE_AND_FUNCTIONS(erule_p)
+
+struct earley_rule {
+    struct production_rule *lhs;
+    struct alternative rhs;
+    struct symbol *dot;
+    erule_p_vec *origin_chart;
+    erule_p_vec completed_from;
+};
+
+typedef erule_p_vec *erule_p_vec_p;
+DEFINE_VEC_TYPE_AND_FUNCTIONS(erule_p_vec_p)
+erule_p_vec_p_vec make_charts(pp_token_vec tokens);
+
+void print_chart(erule_p_vec *chart);
+void print_tree(struct earley_rule *root, size_t indent);
+void test_parser(pp_token_vec tokens);
+
 #define ALT(_tag, ...)                                                   \
     ((struct alternative) {                                              \
         .symbols=(struct symbol[]) {__VA_ARGS__},                        \
@@ -106,11 +125,12 @@ static bool match_identifier(struct preprocessing_token token) {
 }
 
 static bool match_non_hashtag(struct preprocessing_token token) {
-    return !token_is_str(token, (unsigned char*)"#");
+    return match_preprocessing_token(token) && !token_is_str(token, (unsigned char*)"#");
 }
 
 static bool match_non_directive_name(struct preprocessing_token token) {
-    return !token_is_str(token, (unsigned char*)"define") &&
+    return match_preprocessing_token(token) &&
+           !token_is_str(token, (unsigned char*)"define") &&
            !token_is_str(token, (unsigned char*)"undef") &&
            !token_is_str(token, (unsigned char*)"if") &&
            !token_is_str(token, (unsigned char*)"ifdef") &&
@@ -302,5 +322,8 @@ static struct production_rule identifier_list = PR_RULE("identifier-list",
 static struct production_rule identifier_list_opt = OPT(identifier_list);
 
 static struct production_rule identifier = PR_RULE("identifier", ALT(NO_TAG, T_SYM_FN(match_identifier)));
+
+
+
 
 #endif //ICK_PARSER_H
