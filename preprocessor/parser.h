@@ -196,11 +196,11 @@ static struct production_rule preprocessing_file = PR_RULE("preprocessing-file",
 
 static struct production_rule group_opt = OPT(group);
 
+enum list_rule_tag { LIST_RULE_ONE, LIST_RULE_MULTI };
 // group: group-part group group-part
-enum group_tag { GROUP_ONE_PART, GROUP_MULTI_PART };
 static struct production_rule group = PR_RULE("group",
-                                              ALT(GROUP_ONE_PART, NT_SYM(group_part)),
-                                              ALT(GROUP_MULTI_PART, NT_SYM(group), NT_SYM(group_part)));
+                                              ALT(LIST_RULE_ONE, NT_SYM(group_part)),
+                                              ALT(LIST_RULE_MULTI, NT_SYM(group), NT_SYM(group_part)));
 
 // group-part: if-section control-line text-line # non-directive
 enum group_part_tag { GROUP_PART_IF, GROUP_PART_CONTROL, GROUP_PART_TEXT, GROUP_PART_NON_DIRECTIVE };
@@ -280,19 +280,17 @@ static struct production_rule control_line = PR_RULE("control-line",
 // text-line: pp-tokens_opt new-line
 static struct production_rule non_hashtag = PR_RULE("non-hashtag", ALT(NO_TAG, T_SYM_FN(match_non_hashtag)));
 
-enum tokens_not_starting_with_hashtag_tag { TOKENS_NOT_STARTING_WITH_HASHTAG_ONE, TOKENS_NOT_STARTING_WITH_HASHTAG_MULTI };
 static struct production_rule tokens_not_starting_with_hashtag = PR_RULE("tokens-not-starting-with-hashtag",
-        ALT(TOKENS_NOT_STARTING_WITH_HASHTAG_ONE, NT_SYM(non_hashtag)),
-        ALT(TOKENS_NOT_STARTING_WITH_HASHTAG_MULTI, NT_SYM(tokens_not_starting_with_hashtag), NT_SYM(rule_preprocessing_token)));
+        ALT(LIST_RULE_ONE, NT_SYM(non_hashtag)),
+        ALT(LIST_RULE_MULTI, NT_SYM(tokens_not_starting_with_hashtag), NT_SYM(rule_preprocessing_token)));
 static struct production_rule tokens_not_starting_with_hashtag_opt = OPT(tokens_not_starting_with_hashtag);
 static struct production_rule text_line = PR_RULE("text-line", ALT(NO_TAG, NT_SYM(tokens_not_starting_with_hashtag_opt), T_SYM_STR("\n")));
 
 // non-directive: pp-tokens new-line
-enum tokens_not_starting_with_directive_name_tag { TOKENS_NOT_STARTING_WITH_DIRECTIVE_NAME_ONE, TOKENS_NOT_STARTING_WITH_DIRECTIVE_NAME_MULTI };
 static struct production_rule not_directive_name = PR_RULE("not-directive-name", ALT(NO_TAG, T_SYM_FN(match_non_directive_name)));
 static struct production_rule tokens_not_starting_with_directive_name = PR_RULE("tokens-not-starting-with-directive-name",
-        ALT(TOKENS_NOT_STARTING_WITH_DIRECTIVE_NAME_ONE, NT_SYM(not_directive_name)),
-        ALT(TOKENS_NOT_STARTING_WITH_DIRECTIVE_NAME_MULTI, NT_SYM(tokens_not_starting_with_directive_name), NT_SYM(rule_preprocessing_token)));
+        ALT(LIST_RULE_ONE, NT_SYM(not_directive_name)),
+        ALT(LIST_RULE_MULTI, NT_SYM(tokens_not_starting_with_directive_name), NT_SYM(rule_preprocessing_token)));
 static struct production_rule non_directive = PR_RULE("non-directive",
                                                       ALT(NO_TAG, NT_SYM(tokens_not_starting_with_directive_name), T_SYM_STR("\n")));
 
@@ -303,10 +301,9 @@ static struct production_rule lparen = PR_RULE("lparen", ALT(NO_TAG, T_SYM_FN(ma
 static struct production_rule replacement_list = PR_RULE("replacement-list", ALT(NO_TAG, NT_SYM(pp_tokens_opt)));
 
 // pp-tokens: preprocessing-token pp-tokens preprocessing-token
-enum pp_tokens_tag { PP_TOKENS_ONE, PP_TOKENS_MULTI };
 static struct production_rule pp_tokens = PR_RULE("pp-tokens",
-                                                  ALT(PP_TOKENS_ONE, NT_SYM(rule_preprocessing_token)),
-                                                  ALT(PP_TOKENS_MULTI, NT_SYM(pp_tokens), NT_SYM(rule_preprocessing_token)));
+                                                  ALT(LIST_RULE_ONE, NT_SYM(rule_preprocessing_token)),
+                                                  ALT(LIST_RULE_MULTI, NT_SYM(pp_tokens), NT_SYM(rule_preprocessing_token)));
 
 static struct production_rule pp_tokens_opt = OPT(pp_tokens);
 
@@ -315,10 +312,9 @@ static struct production_rule rule_preprocessing_token = PR_RULE("preprocessing-
 // identifier-list:
 //      identifier
 //      identifier-list , identifier
-enum identifier_list_tag { IDENTIFIER_LIST_ONE, IDENTIFIER_LIST_MULTI };
 static struct production_rule identifier_list = PR_RULE("identifier-list",
-                                                        ALT(IDENTIFIER_LIST_ONE, NT_SYM(identifier)),
-                                                        ALT(IDENTIFIER_LIST_MULTI, NT_SYM(identifier_list), T_SYM_STR(","), NT_SYM(identifier)));
+                                                        ALT(LIST_RULE_ONE, NT_SYM(identifier)),
+                                                        ALT(LIST_RULE_MULTI, NT_SYM(identifier_list), T_SYM_STR(","), NT_SYM(identifier)));
 static struct production_rule identifier_list_opt = OPT(identifier_list);
 
 static struct production_rule identifier = PR_RULE("identifier", ALT(NO_TAG, T_SYM_FN(match_identifier)));
