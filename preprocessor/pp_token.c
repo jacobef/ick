@@ -246,6 +246,9 @@ static struct char_const_str_literal_detector detect_char_const_str_literal(stru
         detector.looking_for_open_quote = false;
         detector.just_opened = true;
     }
+    else if (detector.looking_for_open_quote) {
+        detector.status = IMPOSSIBLE;
+    }
     else if (detector.is_first_char) {
         detector.status = IMPOSSIBLE;
     }
