@@ -110,7 +110,7 @@ void test_parser(pp_token_vec tokens);
     })
 
 enum opt_tag { OPT_ONE, OPT_NONE };
-#define OPT(_rule) PR_RULE(#_rule "_opt", ALT(OPT_ONE, NT_SYM(_rule)), EMPTY_ALT(OPT_NONE))
+#define OPT(_name, _rule) PR_RULE(_name, ALT(OPT_ONE, NT_SYM(_rule)), EMPTY_ALT(OPT_NONE))
 
 static bool match_preprocessing_token(__attribute__((unused)) struct preprocessing_token token) {
     return !token_is_str(token, (unsigned char*)"\n");
@@ -194,7 +194,7 @@ static struct production_rule rule_preprocessing_token;
 // preprocessing-file: group_opt
 static struct production_rule preprocessing_file = PR_RULE("preprocessing-file", ALT(NO_TAG, NT_SYM(group_opt)));
 
-static struct production_rule group_opt = OPT(group);
+static struct production_rule group_opt = OPT("group_opt", group);
 
 enum list_rule_tag { LIST_RULE_ONE, LIST_RULE_MULTI };
 // group: group-part group group-part
@@ -236,7 +236,7 @@ static struct production_rule if_group = PR_RULE("if-group",
 // else-group: # else new-line group_opt
 static struct production_rule else_group = PR_RULE("else-group",
                                                    ALT(NO_TAG, T_SYM_STR("#"), T_SYM_STR("else"), T_SYM_STR("\n"), NT_SYM(group_opt)));
-static struct production_rule else_group_opt = OPT(else_group);
+static struct production_rule else_group_opt = OPT("else-group_opt", else_group);
 
 // endif-line: # endif new-line
 static struct production_rule endif_line = PR_RULE("endif-line",
@@ -283,7 +283,7 @@ static struct production_rule non_hashtag = PR_RULE("non-hashtag", ALT(NO_TAG, T
 static struct production_rule tokens_not_starting_with_hashtag = PR_RULE("tokens-not-starting-with-hashtag",
         ALT(LIST_RULE_ONE, NT_SYM(non_hashtag)),
         ALT(LIST_RULE_MULTI, NT_SYM(tokens_not_starting_with_hashtag), NT_SYM(rule_preprocessing_token)));
-static struct production_rule tokens_not_starting_with_hashtag_opt = OPT(tokens_not_starting_with_hashtag);
+static struct production_rule tokens_not_starting_with_hashtag_opt = OPT("tokens-not-starting-with-hashtag_opt", tokens_not_starting_with_hashtag);
 static struct production_rule text_line = PR_RULE("text-line", ALT(NO_TAG, NT_SYM(tokens_not_starting_with_hashtag_opt), T_SYM_STR("\n")));
 
 // non-directive: pp-tokens new-line
@@ -305,7 +305,7 @@ static struct production_rule pp_tokens = PR_RULE("pp-tokens",
                                                   ALT(LIST_RULE_ONE, NT_SYM(rule_preprocessing_token)),
                                                   ALT(LIST_RULE_MULTI, NT_SYM(pp_tokens), NT_SYM(rule_preprocessing_token)));
 
-static struct production_rule pp_tokens_opt = OPT(pp_tokens);
+static struct production_rule pp_tokens_opt = OPT("pp-tokens_opt", pp_tokens);
 
 static struct production_rule rule_preprocessing_token = PR_RULE("preprocessing-token", ALT(NO_TAG, T_SYM_FN(match_preprocessing_token)));
 
@@ -315,7 +315,7 @@ static struct production_rule rule_preprocessing_token = PR_RULE("preprocessing-
 static struct production_rule identifier_list = PR_RULE("identifier-list",
                                                         ALT(LIST_RULE_ONE, NT_SYM(identifier)),
                                                         ALT(LIST_RULE_MULTI, NT_SYM(identifier_list), T_SYM_STR(","), NT_SYM(identifier)));
-static struct production_rule identifier_list_opt = OPT(identifier_list);
+static struct production_rule identifier_list_opt = OPT("identifier-list_opt", identifier_list);
 
 static struct production_rule identifier = PR_RULE("identifier", ALT(NO_TAG, T_SYM_FN(match_identifier)));
 

@@ -267,7 +267,7 @@ erule_p_vec_p_vec make_charts(pp_token_vec tokens) {
     return out;
 }
 
-struct earley_rule *get_tree_root(erule_p_vec final_chart) {
+static struct earley_rule *get_tree_root(erule_p_vec final_chart) {
     for (size_t i = 0; i < final_chart.n_elements; i++) {
         struct earley_rule *rule = final_chart.arr[i];
         if (rule->lhs == &preprocessing_file && is_completed(*rule)) {
