@@ -201,10 +201,10 @@ void print_chart(erule_p_vec *chart) {
 }
 
 static void print_token(struct preprocessing_token token) {
-    for (const unsigned char *it = token.first; it != token.last+1; it++) {
+    for (const unsigned char *it = token.first; it != token.end; it++) {
         switch (*it) {
             case ' ':
-                if (token.last - token.first == 0) printf("[space]");
+                if (token.end - token.first == 1) printf("[space]");
                 else printf(" ");
                 break;
             case '\t':

@@ -66,10 +66,10 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < tokens.n_elements; i++) {
         struct preprocessing_token token = tokens.arr[i];
         const unsigned char *it = token.first;
-        while (it != token.last+1) {
+        while (it != token.end) {
             switch(*it) {
                 case ' ':
-                    if (token.last-token.first == 0) printf("[space]");
+                    if (token.end-token.first == 1) printf("[space]");
                     else printf(" ");
                     break;
                 case '\t':

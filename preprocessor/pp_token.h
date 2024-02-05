@@ -113,7 +113,7 @@ enum pp_token_type {
 
 struct preprocessing_token {
     const unsigned char *first;
-    const unsigned char *last;
+    const unsigned char *end;
     enum pp_token_type type;
     bool after_whitespace;
 };

@@ -406,7 +406,7 @@ static enum pp_token_type get_token_type(struct preprocessing_token_detector det
 }
 
 bool token_is_str(struct preprocessing_token token, const unsigned char *str) {
-    for (const unsigned char *tok_it = token.first, *str_it = str; tok_it != token.last+1 && *str_it; tok_it++, str_it++) {
+    for (const unsigned char *tok_it = token.first, *str_it = str; tok_it != token.end && *str_it; tok_it++, str_it++) {
         if (*tok_it != *str_it) return false;
     }
     return true;
@@ -467,7 +467,7 @@ pp_token_vec get_pp_tokens(struct sstr input) {
         }
         if (token_detector.status == MATCH) {
             match_exists = true;
-            token.last = c;
+            token.end = c+1;
             token_at_most_recent_match = token;
             detector_at_most_recent_match = token_detector;
         } else if (token_detector.status == IMPOSSIBLE) {
@@ -475,7 +475,7 @@ pp_token_vec get_pp_tokens(struct sstr input) {
                 token_at_most_recent_match.type = get_token_type(detector_at_most_recent_match);
                 pp_token_vec_append(&tokens, token_at_most_recent_match);
                 match_exists = false;
-                c = token_at_most_recent_match.last;
+                c = token_at_most_recent_match.end - 1;
             }
             token_detector = initial_detector;
         }
