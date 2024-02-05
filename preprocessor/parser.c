@@ -277,6 +277,53 @@ static struct earley_rule *get_tree_root(erule_p_vec final_chart) {
     return NULL;
 }
 
+static erule_p_vec flatten_list_rule(struct earley_rule list_rule) {
+    // would be cleaner if recursive, but would stack overflow for long lists
+
+    erule_p_vec out_reversed;
+    erule_p_vec_init(&out_reversed, 0);
+    struct earley_rule current_rule = list_rule;
+    while (current_rule.rhs.tag == LIST_RULE_MULTI) {
+        erule_p_vec_append(&out_reversed, current_rule.completed_from.arr[1]);
+        current_rule = *current_rule.completed_from.arr[0];
+    }
+    erule_p_vec_append(&out_reversed, current_rule.completed_from.arr[0]);
+
+    erule_p_vec out;
+    erule_p_vec_init(&out, 0);
+    for (ssize_t i = out_reversed.n_elements - 1; i >= 0; i--) {
+        erule_p_vec_append(&out, out_reversed.arr[i]);
+    }
+    erule_p_vec_free_internals(&out_reversed);
+    return out;
+}
+
+bool is_list_rule(struct production_rule *rule) {
+    if (rule->n != 2) return false;
+    bool found_lr_symbol = false;
+    bool found_concrete_symbol = false;
+    for (size_t i = 0; i < rule->alternatives[1].n; i++) {
+        struct symbol symbol = rule->alternatives[1].symbols[i];
+        if (!symbol.is_terminal && !found_lr_symbol && symbol.val.rule == rule) {
+            found_lr_symbol = true;
+        } else if (!symbol.is_terminal) {
+            found_concrete_symbol = true;
+        }
+    }
+    return found_lr_symbol && found_concrete_symbol;
+}
+
+void flatten_list_rules(struct earley_rule *root) {
+    if (is_list_rule(root->lhs)) {
+        erule_p_vec old_completed_from = root->completed_from;
+        root->completed_from = flatten_list_rule(*root);
+        erule_p_vec_free_internals(&old_completed_from);
+    }
+    for (size_t i = 0; i < root->completed_from.n_elements; i++) {
+        flatten_list_rules(root->completed_from.arr[i]);
+    }
+}
+
 void print_tree(struct earley_rule *root, size_t indent) {
     if (root == NULL) {
         printf("No tree to print.\n");
@@ -292,6 +339,34 @@ void print_tree(struct earley_rule *root, size_t indent) {
     }
 }
 
+static void print_expanded_groups(struct earley_rule root) {
+    if (root.lhs != &preprocessing_file) {
+        preprocessor_fatal_error(0, 0, 0, "root isn't preprocessing-file");
+    }
+
+    struct earley_rule group_opt_rule = *root.completed_from.arr[0];
+    if (group_opt_rule.lhs != &group_opt) {
+        preprocessor_fatal_error(0, 0, 0, "root child isn't group-opt");
+    }
+
+    if (group_opt_rule.rhs.tag == OPT_NONE) {
+        printf("no groups\n");
+    }
+
+    struct earley_rule group_rule = *group_opt_rule.completed_from.arr[0];
+    if (group_rule.lhs != &group) {
+        preprocessor_fatal_error(0, 0, 0, "group-opt child isn't group");
+    }
+
+    erule_p_vec group_expanded = flatten_list_rule(group_rule);
+    print_with_color(TEXT_COLOR_LIGHT_RED, "group rule expanded:\n");
+    for (size_t i = 0; i < group_expanded.n_elements; i++) {
+        print_rule(*group_expanded.arr[i]);
+        printf("\n");
+    }
+    printf("\n");
+}
+
 void test_parser(pp_token_vec tokens) {
     erule_p_vec_p_vec charts = make_charts(tokens);
     for (size_t i = 0; i < charts.n_elements; i++) {
@@ -300,9 +375,8 @@ void test_parser(pp_token_vec tokens) {
     }
     printf("\n");
     struct earley_rule *root = get_tree_root(*charts.arr[charts.n_elements-1]);
-    print_with_color(TEXT_COLOR_LIGHT_RED, "Tree root:\n");
-    print_rule(*root);
-    printf("\n");
+    print_expanded_groups(*root);
+    flatten_list_rules(root);
     print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");
     print_tree(root, 0);
 }
