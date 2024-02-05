@@ -4,11 +4,14 @@ set(SOURCE_FILES
         driver/file_utils.c driver/file_utils.h driver/diagnostics.c driver/diagnostics.h
         data_structures/trie.c data_structures/trie.h
         debug/reminder.c debug/reminder.h debug/malloc.c debug/malloc.h
-        data_structures/vector.h  data_structures/map.c data_structures/map.h  data_structures/result.c data_structures/result.h
+        data_structures/vector.h data_structures/map.h  data_structures/result.c data_structures/result.h
         preprocessor/parser.h preprocessor/trigraphs.c preprocessor/trigraphs.h preprocessor/sized_str.h preprocessor/diagnostics.c preprocessor/diagnostics.h preprocessor/escaped_newlines.c preprocessor/escaped_newlines.h preprocessor/pp_token.c preprocessor/pp_token.h preprocessor/detector.h
         preprocessor/parser.c
         debug/color_print.c
-        debug/color_print.h)
+        debug/color_print.h
+        preprocessor/macro_expansion.c
+        preprocessor/macro_expansion.h
+)
 
 project(ick C)
 

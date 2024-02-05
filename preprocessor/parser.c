@@ -291,14 +291,14 @@ static erule_p_vec flatten_list_rule(struct earley_rule list_rule) {
 
     erule_p_vec out;
     erule_p_vec_init(&out, 0);
-    for (ssize_t i = out_reversed.n_elements - 1; i >= 0; i--) {
+    for (ssize_t i = (ssize_t)out_reversed.n_elements - 1; i >= 0; i--) {
         erule_p_vec_append(&out, out_reversed.arr[i]);
     }
     erule_p_vec_free_internals(&out_reversed);
     return out;
 }
 
-bool is_list_rule(struct production_rule *rule) {
+static bool is_list_rule(struct production_rule *rule) {
     if (rule->n != 2) return false;
     bool found_lr_symbol = false;
     bool found_concrete_symbol = false;
@@ -313,7 +313,7 @@ bool is_list_rule(struct production_rule *rule) {
     return found_lr_symbol && found_concrete_symbol;
 }
 
-void flatten_list_rules(struct earley_rule *root) {
+static void flatten_list_rules(struct earley_rule *root) {
     if (is_list_rule(root->lhs)) {
         erule_p_vec old_completed_from = root->completed_from;
         root->completed_from = flatten_list_rule(*root);
