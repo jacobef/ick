@@ -54,10 +54,10 @@
                 .next=NULL                                                                                                   \
             };                                                                                                               \
             return;                                                                                                          \
-        }                                                                                                                    \
+        }                                                                                                                           \
         while (node->next != NULL) {                                                                                         \
             node = node->next;                                                                                               \
-        }                                                                                                                    \
+        }                                                                                                                           \
         node->next = MALLOC(sizeof(NODE_T(_key_t, _value_t)));                                                               \
         *node->next = (NODE_T(_key_t, _value_t)) {                                                                           \
             .key=key,                                                                                                        \
@@ -67,23 +67,27 @@
         map_p->n_elements++;                                                                                                 \
     }
 
-#define DEFINE_MAP_EXPAND_FUNCTION(_key_t, _value_t)                                                                 \
-    __attribute__((unused)) static void _key_t##_##_value_t##_map##_expand(_key_t##_##_value_t##_map *map_p, size_t new_n_buckets)  {        \
-        NODE_T(_key_t, _value_t) **old_buckets = map_p->buckets;                                                      \
-        size_t old_n_buckets = map_p->n_buckets;                                                                     \
-                                                                                                                     \
-        map_p->buckets = MALLOC(new_n_buckets * sizeof(NODE_T(_key_t, _value_t)));                                   \
-        map_p->n_buckets = new_n_buckets;                                                                            \
-        map_p->n_elements = 0;                                                                                       \
-                                                                                                                     \
-        for (size_t i = 0; i < old_n_buckets; i++) {                                                                 \
-                NODE_T(_key_t, _value_t) *node = old_buckets[i];                                                     \
-                while (node != NULL) {                                                                               \
-                    _key_t##_##_value_t##_map##_add_unchecked_no_expand(map_p, node->key, node->value);                     \
-                    node = node->next;                                                                               \
-                }                                                                                                    \
-        }                                                                                                            \
-        FREE(old_buckets);                                                                                           \
+#define DEFINE_MAP_EXPAND_FUNCTION(_key_t, _value_t)                                                                                  \
+    __attribute__((unused)) static void _key_t##_##_value_t##_map##_expand(_key_t##_##_value_t##_map *map_p, size_t new_n_buckets)  { \
+        NODE_T(_key_t, _value_t) **old_buckets = map_p->buckets;                                                                      \
+        size_t old_n_buckets = map_p->n_buckets;                                                                                      \
+                                                                                                                                      \
+        map_p->buckets = MALLOC(new_n_buckets * sizeof(NODE_T(_key_t, _value_t)));                                                    \
+        for (size_t i = 0 ; i < new_n_buckets; i++) {                                                                                 \
+            map_p->buckets[i] = NULL;                                                                                                 \
+        }                                                                                                                             \
+        map_p->n_buckets = new_n_buckets;                                                                                             \
+        map_p->n_elements = 0;                                                                                                        \
+                                                                                                                                      \
+                                                                                                                                      \
+        for (size_t i = 0; i < old_n_buckets; i++) {                                                                                  \
+                NODE_T(_key_t, _value_t) *node = old_buckets[i];                                                                      \
+                while (node != NULL) {                                                                                                \
+                    _key_t##_##_value_t##_map##_add_unchecked_no_expand(map_p, node->key, node->value);                               \
+                    node = node->next;                                                                                                \
+                }                                                                                                                     \
+        }                                                                                                                             \
+        FREE(old_buckets);                                                                                                            \
     }
 
 #define DEFINE_MAP_GET_FUNCTION(_key_t, _value_t)                                                   \

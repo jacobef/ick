@@ -49,8 +49,6 @@
     })
 
 #define OPT(_name, _rule) PR_RULE(_name, ALT(OPT_ONE, NT_SYM(_rule)), EMPTY_ALT(OPT_NONE))
-
-#define HI hi
 #define ABC wjefiowjfoiwej
 
 static bool match_preprocessing_token(__attribute__((unused)) struct preprocessing_token token) {

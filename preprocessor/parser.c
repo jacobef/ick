@@ -340,8 +340,8 @@ static void deal_with_macros(struct earley_rule root) {
     }
     struct earley_rule group_rule = *group_opt_rule.completed_from.arr[0];
 
-    str_view_macro_args_body_map macros;
-    str_view_macro_args_body_map_init(&macros, 0);
+    str_view_macro_args_and_body_map macros;
+    str_view_macro_args_and_body_map_init(&macros, 0);
 
     for (size_t i = 0; i < group_rule.completed_from.n_elements; i++) {
         struct earley_rule group_part_rule = *group_rule.completed_from.arr[i];
@@ -349,6 +349,11 @@ static void deal_with_macros(struct earley_rule root) {
             struct earley_rule control_line_rule = *group_part_rule.completed_from.arr[0];
             if (control_line_rule.rhs.tag == CONTROL_LINE_DEFINE_OBJECT_LIKE) {
                 define_object_like_macro(control_line_rule, &macros);
+                print_with_color(TEXT_COLOR_LIGHT_RED, "Defined macro, all macros:\n");
+                print_macros(&macros);
+                printf("\n");
+            } else if (control_line_rule.rhs.tag == CONTROL_LINE_DEFINE_FUNCTION_LIKE_MIXED_ARGS || control_line_rule.rhs.tag == CONTROL_LINE_DEFINE_FUNCTION_LIKE_ONLY_VARARGS || control_line_rule.rhs.tag == CONTROL_LINE_DEFINE_FUNCTION_LIKE_NO_VARARGS) {
+                define_function_like_macro(control_line_rule, &macros);
                 print_with_color(TEXT_COLOR_LIGHT_RED, "Defined macro, all macros:\n");
                 print_macros(&macros);
                 printf("\n");
@@ -365,6 +370,10 @@ void test_parser(pp_token_vec tokens) {
     }
     printf("\n");
     struct earley_rule *root = get_tree_root(*charts.arr[charts.n_elements-1]);
+    if (root == NULL) {
+        printf("No tree to print; parsing failed.\n");
+        return;
+    }
     flatten_list_rules(root);
     deal_with_macros(*root);
     print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");

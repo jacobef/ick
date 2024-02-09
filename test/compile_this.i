@@ -14,8 +14,6 @@
 #define EMPTY_ALT(_tag)                       ((struct alternative) {                       .symbols=(struct symbol[]) { 0 },         .n=0,                                     .tag=_tag                             })
 
 #define OPT(_name, _rule) PR_RULE(_name, ALT(OPT_ONE, NT_SYM(_rule)), EMPTY_ALT(OPT_NONE))
-
-#define HI hi
 #define ABC wjefiowjfoiwej
 
 static bool match_preprocessing_token(__attribute__((unused)) struct preprocessing_token token) {
@@ -25,3 +23,4 @@ static bool match_preprocessing_token(__attribute__((unused)) struct preprocessi
 static bool match_lparen(struct preprocessing_token token) {
     return token_is_str(token, (unsigned char*)"(") && !token.after_whitespace;
 }
+

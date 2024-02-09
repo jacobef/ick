@@ -7,10 +7,11 @@
 #include "data_structures/map.h"
 
 
-struct macro_args_body {
-    struct str_view args;
+struct macro_args_and_body {
+    struct str_view *args;
     size_t n_args;
     bool accepts_varargs;
+    bool is_function_like;
     struct preprocessing_token *replacements;
     size_t n_replacements;
 };
@@ -32,10 +33,12 @@ static size_t hash_sstr_view(struct str_view token_name, size_t capacity) {
 }
 
 typedef struct str_view str_view;
-typedef struct macro_args_body macro_args_body;
-DEFINE_MAP_TYPE_AND_FUNCTIONS(str_view, macro_args_body, hash_sstr_view, sstr_views_equal)
+DEFINE_VEC_TYPE_AND_FUNCTIONS(str_view)
+typedef struct macro_args_and_body macro_args_and_body;
+DEFINE_MAP_TYPE_AND_FUNCTIONS(str_view, macro_args_and_body, hash_sstr_view, sstr_views_equal)
 
-void define_object_like_macro(struct earley_rule rule, str_view_macro_args_body_map *macros);
-void print_macros(str_view_macro_args_body_map *macros);
+void define_object_like_macro(struct earley_rule rule, str_view_macro_args_and_body_map *macros);
+void define_function_like_macro(struct earley_rule rule, str_view_macro_args_and_body_map *macros);
+void print_macros(str_view_macro_args_and_body_map *macros);
 
 #endif //MACROS_H
