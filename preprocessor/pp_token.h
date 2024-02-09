@@ -112,8 +112,7 @@ enum pp_token_type {
 };
 
 struct preprocessing_token {
-    const unsigned char *first;
-    const unsigned char *end;
+    struct str_view name;
     enum pp_token_type type;
     bool after_whitespace;
 };
@@ -139,7 +138,7 @@ struct preprocessing_token_detector detect_preprocessing_token(struct preprocess
 
 typedef struct preprocessing_token pp_token;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(pp_token)
-pp_token_vec get_pp_tokens(struct sstr input);
+pp_token_vec get_pp_tokens(struct str_view input);
 
 static struct trie punctuators_trie = {
     /*

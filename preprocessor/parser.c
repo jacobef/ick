@@ -2,9 +2,10 @@
 #include "preprocessor/diagnostics.h"
 #include "data_structures/vector.h"
 #include "debug/color_print.h"
+#include "macro_expansion.h"
 
 
-static erule_p_vec get_earley_rules(struct production_rule *rule, erule_p_vec *origin) {
+static erule_p_vec get_earley_rules(const struct production_rule *rule, erule_p_vec *origin) {
     erule_p_vec out;
     erule_p_vec_init(&out, rule->n);
     for (size_t i = 0; i < rule->n; i++) {
@@ -201,20 +202,11 @@ void print_chart(erule_p_vec *chart) {
 }
 
 static void print_token(struct preprocessing_token token) {
-    for (const unsigned char *it = token.first; it != token.end; it++) {
-        switch (*it) {
-            case ' ':
-                if (token.end - token.first == 1) printf("[space]");
-                else printf(" ");
-                break;
-            case '\t':
-                printf("[tab]");
-                break;
-            case '\n':
-                printf("[newline]");
-                break;
-            default:
-                printf("%c", *it);
+    for (size_t j = 0; j < token.name.n; j++) {
+        if (token.name.first[j] == '\n') {
+            printf("[newline]");
+        } else {
+            printf("%c", token.name.first[j]);
         }
     }
 }
@@ -298,7 +290,7 @@ static erule_p_vec flatten_list_rule(struct earley_rule list_rule) {
     return out;
 }
 
-static bool is_list_rule(struct production_rule *rule) {
+static bool is_list_rule(const struct production_rule *rule) {
     if (rule->n != 2) return false;
     bool found_lr_symbol = false;
     bool found_concrete_symbol = false;
@@ -339,32 +331,30 @@ void print_tree(struct earley_rule *root, size_t indent) {
     }
 }
 
-static void print_expanded_groups(struct earley_rule root) {
-    if (root.lhs != &preprocessing_file) {
-        preprocessor_fatal_error(0, 0, 0, "root isn't preprocessing-file");
-    }
 
+static void deal_with_macros(struct earley_rule root) {
     struct earley_rule group_opt_rule = *root.completed_from.arr[0];
-    if (group_opt_rule.lhs != &group_opt) {
-        preprocessor_fatal_error(0, 0, 0, "root child isn't group-opt");
-    }
-
     if (group_opt_rule.rhs.tag == OPT_NONE) {
         printf("no groups\n");
+        return;
     }
-
     struct earley_rule group_rule = *group_opt_rule.completed_from.arr[0];
-    if (group_rule.lhs != &group) {
-        preprocessor_fatal_error(0, 0, 0, "group-opt child isn't group");
-    }
 
-    erule_p_vec group_expanded = flatten_list_rule(group_rule);
-    print_with_color(TEXT_COLOR_LIGHT_RED, "group rule expanded:\n");
-    for (size_t i = 0; i < group_expanded.n_elements; i++) {
-        print_rule(*group_expanded.arr[i]);
-        printf("\n");
+    str_view_macro_args_body_map macros;
+    str_view_macro_args_body_map_init(&macros, 0);
+
+    for (size_t i = 0; i < group_rule.completed_from.n_elements; i++) {
+        struct earley_rule group_part_rule = *group_rule.completed_from.arr[i];
+        if (group_part_rule.rhs.tag == GROUP_PART_CONTROL) {
+            struct earley_rule control_line_rule = *group_part_rule.completed_from.arr[0];
+            if (control_line_rule.rhs.tag == CONTROL_LINE_DEFINE_OBJECT_LIKE) {
+                define_object_like_macro(control_line_rule, &macros);
+                print_with_color(TEXT_COLOR_LIGHT_RED, "Defined macro, all macros:\n");
+                print_macros(&macros);
+                printf("\n");
+            }
+        }
     }
-    printf("\n");
 }
 
 void test_parser(pp_token_vec tokens) {
@@ -375,8 +365,8 @@ void test_parser(pp_token_vec tokens) {
     }
     printf("\n");
     struct earley_rule *root = get_tree_root(*charts.arr[charts.n_elements-1]);
-    print_expanded_groups(*root);
     flatten_list_rules(root);
+    deal_with_macros(*root);
     print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");
     print_tree(root, 0);
 }

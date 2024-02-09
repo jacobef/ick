@@ -5,17 +5,17 @@
 
 #include "debug/malloc.h"
 
-struct sstr rm_escaped_newlines(struct sstr input) {
+struct str_view rm_escaped_newlines(struct str_view input) {
     if (input.n < 2) {
-        struct sstr out = { .chars = MALLOC(input.n), .n = input.n };
-        memcpy(out.chars, input.chars, input.n);
-        return out;
-    };
+        unsigned char *out_chars = MALLOC(input.n);
+        memcpy(out_chars, input.first, input.n);
+        return (struct str_view) { .first = out_chars, .n = input.n };
+    }
     unsigned char *output_chars = MALLOC(input.n);
-    const unsigned char *reader = input.chars;
+    const unsigned char *reader = input.first;
     unsigned char *writer = output_chars;
-    // The condition is UB if input.n_chars < 2, but the function should've returned before in that case
-    while (reader <= input.chars + input.n - 2) {
+    // The condition is UB if input.n < 2, but the function should've returned before in that case
+    while (reader <= input.first + input.n - 2) {
         if (reader[0] == '\\' && reader[1] == '\n') {
             reader += 2;
         }
@@ -24,8 +24,8 @@ struct sstr rm_escaped_newlines(struct sstr input) {
             reader++; writer++;
         }
     }
-    for (; reader != input.chars + input.n; writer++, reader++) {
+    for (; reader != input.first + input.n; writer++, reader++) {
         *writer = *reader;
     }
-    return (struct sstr){ .chars = output_chars, .n = (size_t)(writer-output_chars) };
+    return (struct str_view){ .first = output_chars, .n = (size_t)(writer - output_chars) };
 }

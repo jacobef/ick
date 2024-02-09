@@ -3,24 +3,39 @@
 
 #include <stdbool.h>
 #include "preprocessor/pp_token.h"
+#include "preprocessor/parser.h"
 #include "data_structures/map.h"
 
-static bool pp_tokens_equal(struct preprocessing_token t1, struct preprocessing_token t2) {
-    const unsigned char *c1, *c2;
-    for (c1 = t1.first, c2 = t2.first; c1 != t1.end && c2 != t2.end; c1++, c2++) {
-        if (*c1 != *c2) return false;
+
+struct macro_args_body {
+    struct str_view args;
+    size_t n_args;
+    bool accepts_varargs;
+    struct preprocessing_token *replacements;
+    size_t n_replacements;
+};
+
+static bool sstr_views_equal(struct str_view t1, struct str_view t2) {
+    size_t i1, i2;
+    for (i1 = 0, i2 = 0; i1 < t1.n && i2 < t2.n; i1++, i2++) {
+        if (t1.first[i1] != t2.first[i2]) return false;
     }
-    return c1 == t1.end && c2 == t2.end;
+    return i1 == t1.n && i2 == t2.n;
 }
 
-static size_t hash_pp_token(struct preprocessing_token token, size_t capacity) {
+static size_t hash_sstr_view(struct str_view token_name, size_t capacity) {
     size_t chars_sum = 0;
-    for (const unsigned char *c = token.first; c != token.end; c++) {
-        chars_sum += (size_t)(*c);
+    for (size_t i = 0; i < token_name.n; i++) {
+        chars_sum += (size_t)(token_name.first[i]);
     }
     return chars_sum % capacity;
 }
 
-DEFINE_MAP_TYPE_AND_FUNCTIONS(pp_token, pp_token_vec, hash_pp_token, pp_tokens_equal)
+typedef struct str_view str_view;
+typedef struct macro_args_body macro_args_body;
+DEFINE_MAP_TYPE_AND_FUNCTIONS(str_view, macro_args_body, hash_sstr_view, sstr_views_equal)
+
+void define_object_like_macro(struct earley_rule rule, str_view_macro_args_body_map *macros);
+void print_macros(str_view_macro_args_body_map *macros);
 
 #endif //MACROS_H

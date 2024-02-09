@@ -54,34 +54,23 @@ int main(int argc, char *argv[]) {
     fclose(input_file);
     input_chars[input_len] = '\n'; // too much of a pain without this
 
-    struct sstr trigraphs_replaced = replace_trigraphs(
-            (struct sstr){ .chars = input_chars, .n = input_len + 1 }
+    struct str_view trigraphs_replaced = replace_trigraphs(
+            (struct str_view){ .first = input_chars, .n = input_len + 1 }
     );
-    struct sstr logical_lines = rm_escaped_newlines(trigraphs_replaced);
-    fwrite(logical_lines.chars, sizeof(char), logical_lines.n, output_file);
+    struct str_view logical_lines = rm_escaped_newlines(trigraphs_replaced);
+    fwrite(logical_lines.first, sizeof(char), logical_lines.n, output_file);
 
     fclose(output_file);
 
     pp_token_vec tokens = get_pp_tokens(logical_lines);
     for (size_t i = 0; i < tokens.n_elements; i++) {
         struct preprocessing_token token = tokens.arr[i];
-        const unsigned char *it = token.first;
-        while (it != token.end) {
-            switch(*it) {
-                case ' ':
-                    if (token.end-token.first == 1) printf("[space]");
-                    else printf(" ");
-                    break;
-                case '\t':
-                    printf("[tab]");
-                    break;
-                case '\n':
-                    printf("[newline]");
-                    break;
-                default:
-                    printf("%c", *it);
+        for (size_t j = 0; j < token.name.n; j++) {
+            if (token.name.first[j] == '\n') {
+                printf("[newline]");
+            } else {
+                printf("%c", token.name.first[j]);
             }
-            it++;
         }
         printf (" (");
         if (token.type == HEADER_NAME) printf("header name");
@@ -100,7 +89,7 @@ int main(int argc, char *argv[]) {
 
     pp_token_vec_free_internals(&tokens);
     FREE(input_chars);
-    FREE(trigraphs_replaced.chars);
-    FREE(logical_lines.chars);
+    FREE((void*)trigraphs_replaced.first);
+    FREE((void*)logical_lines.first);
     FREE(ick_progname);
 }

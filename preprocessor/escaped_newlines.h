@@ -3,6 +3,6 @@
 
 #include "sized_str.h"
 
-struct sstr rm_escaped_newlines(struct sstr input);
+struct str_view rm_escaped_newlines(struct str_view input);
 
 #endif //TEST_ESCAPED_NEWLINES_H

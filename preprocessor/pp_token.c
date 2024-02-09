@@ -406,10 +406,10 @@ static enum pp_token_type get_token_type(struct preprocessing_token_detector det
 }
 
 bool token_is_str(struct preprocessing_token token, const unsigned char *str) {
-    for (const unsigned char *tok_it = token.first, *str_it = str; tok_it != token.end && *str_it; tok_it++, str_it++) {
-        if (*tok_it != *str_it) return false;
+    for (size_t i = 0; i < token.name.n; i++) {
+        if (str[i] == '\0' || token.name.first[i] != str[i]) return false;
     }
-    return true;
+    return str[token.name.n] == '\0';
 }
 
 static bool in_include_directive(pp_token_vec tokens) {
@@ -422,7 +422,7 @@ static bool in_include_directive(pp_token_vec tokens) {
     return after_hashtag_include && (at_beginning_of_file || hashtag_after_newline);
 }
 
-pp_token_vec get_pp_tokens(struct sstr input) {
+pp_token_vec get_pp_tokens(struct str_view input) {
     struct char_const_str_literal_detector initial_ccsld = {.status=INCOMPLETE, .looking_for_open_quote=true, .in_literal=false,
             .prev_esc_seq_status=INCOMPLETE, .is_first_char=true, .just_opened=false,
             .esc_seq_detector={.status=INCOMPLETE, .looking_for_hex=false, .looking_for_octal=false,
@@ -453,29 +453,32 @@ pp_token_vec get_pp_tokens(struct sstr input) {
 
     struct preprocessing_token token; // scary
     struct preprocessing_token token_at_most_recent_match;
-    for (const unsigned char *c = input.chars; c != input.chars + input.n; c++) {
-        if (in_include_directive(tokens)) {
-            token_detector = detect_preprocessing_token(token_detector, *c, EXCLUDE_STRING_LITERAL);
-        } else {
-            token_detector = detect_preprocessing_token(token_detector, *c, EXCLUDE_HEADER_NAME);
-        }
+    for (const unsigned char *char_p = input.first; char_p != input.first + input.n; char_p++) {
+        // The token can only be a header name if it's after #include, and it can only be a string literal if it's not
+        // Otherwise, it's ambiguous; most tokens inside double quotes could be either
+        token_detector = detect_preprocessing_token(token_detector, *char_p,
+                                                    in_include_directive(tokens) ? EXCLUDE_STRING_LITERAL : EXCLUDE_HEADER_NAME);
+        // If this might be the start of a new token, then initialize it
         if (token_detector.status != IMPOSSIBLE && (token_detector.was_first_char || token_detector.prev_status == IMPOSSIBLE)) {
-            token.first = c;
-            const bool after_actual_whitespace = c != input.chars && isspace(*(c-1));
+            token.name.first = char_p;
+            const bool after_actual_whitespace = char_p != input.first && isspace(*(char_p - 1));
             const bool after_comment = tokens.n_elements > 0 && tokens.arr[tokens.n_elements - 1].type == COMMENT;
             token.after_whitespace = after_actual_whitespace || after_comment;
         }
+        // If the token is valid, then indicate that
         if (token_detector.status == MATCH) {
             match_exists = true;
-            token.end = c+1;
             token_at_most_recent_match = token;
+            token_at_most_recent_match.name.n = (size_t)(char_p + 1 - token.name.first);
             detector_at_most_recent_match = token_detector;
+        // If the token isn't valid and can't be valid in the future:
         } else if (token_detector.status == IMPOSSIBLE) {
+            // If the token was valid before, then add that valid token
             if (match_exists) {
                 token_at_most_recent_match.type = get_token_type(detector_at_most_recent_match);
                 pp_token_vec_append(&tokens, token_at_most_recent_match);
                 match_exists = false;
-                c = token_at_most_recent_match.end - 1;
+                char_p = token_at_most_recent_match.name.first + token_at_most_recent_match.name.n - 1;
             }
             token_detector = initial_detector;
         }

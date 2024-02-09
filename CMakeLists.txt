@@ -11,6 +11,7 @@ set(SOURCE_FILES
         debug/color_print.h
         preprocessor/macro_expansion.c
         preprocessor/macro_expansion.h
+        preprocessor/rule_definitions.c
 )
 
 project(ick C)

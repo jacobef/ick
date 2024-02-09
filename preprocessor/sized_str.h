@@ -3,8 +3,8 @@
 
 #include <stddef.h>
 
-struct sstr {
-    unsigned char *chars;
+struct str_view {
+    const unsigned char *first;
     size_t n;
 };
 
