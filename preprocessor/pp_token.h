@@ -14,8 +14,6 @@ struct header_name_detector {
     bool is_first_char;
 };
 
-struct header_name_detector detect_header_name(struct header_name_detector detector, unsigned char c);
-
 struct universal_character_name_detector {
     enum detection_status status;
     bool looking_for_digits;
@@ -24,8 +22,6 @@ struct universal_character_name_detector {
     unsigned char expected_digits;
     unsigned char n_digits;
 };
-
-struct universal_character_name_detector detect_universal_character_name(struct universal_character_name_detector detector, unsigned char c);
 
 static const struct universal_character_name_detector initial_ucn_detector = {.status=INCOMPLETE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false};
 
@@ -36,8 +32,6 @@ struct identifier_detector {
     bool is_first_char;
 };
 
-struct identifier_detector detect_identifier(struct identifier_detector detector, unsigned char c);
-
 struct pp_number_detector {
     struct universal_character_name_detector ucn_detector;
     enum detection_status status;
@@ -46,8 +40,6 @@ struct pp_number_detector {
     bool looking_for_digit;
     bool is_first_char;
 };
-
-struct pp_number_detector detect_pp_number(struct pp_number_detector detector, unsigned char c);
 
 struct escape_sequence_detector {
     struct universal_character_name_detector ucn_detector;
@@ -66,8 +58,6 @@ static const struct escape_sequence_detector initial_esc_seq_detector = {
         .is_first_char=true, .is_second_char=false,
         .ucn_detector={.status=INCOMPLETE, .is_first_char=true, .n_digits=0, .looking_for_uU=false, .looking_for_digits=false}};
 
-struct escape_sequence_detector detect_escape_sequence(struct escape_sequence_detector detector, unsigned char c);
-
 struct char_const_str_literal_detector {
     struct escape_sequence_detector esc_seq_detector;
     enum detection_status status;
@@ -80,16 +70,11 @@ struct char_const_str_literal_detector {
     unsigned char prev_char;
 };
 
-struct char_const_str_literal_detector detect_character_constant(struct char_const_str_literal_detector detector, unsigned char c);
-
-struct char_const_str_literal_detector detect_string_literal(struct char_const_str_literal_detector detector, unsigned char c);
 
 struct punctuator_detector {
     struct trie *place_in_trie;
     enum detection_status status;
 };
-
-struct punctuator_detector detect_punctuator(struct punctuator_detector detector, unsigned char c);
 
 struct comment_detector {
     enum detection_status status;
@@ -100,8 +85,6 @@ struct comment_detector {
     bool next_char_invalid;
     unsigned char prev_char;
 };
-
-struct comment_detector detect_comment(struct comment_detector detector, unsigned char c);
 
 struct single_char_detector {
     enum detection_status status;
@@ -134,7 +117,6 @@ struct preprocessing_token_detector {
     bool was_first_char;
 };
 enum exclude_from_detection {EXCLUDE_STRING_LITERAL, EXCLUDE_HEADER_NAME};
-struct preprocessing_token_detector detect_preprocessing_token(struct preprocessing_token_detector detector, unsigned char c, enum exclude_from_detection exclude);
 
 typedef struct preprocessing_token pp_token;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(pp_token)

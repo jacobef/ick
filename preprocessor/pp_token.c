@@ -19,7 +19,7 @@ static bool is_octal_digit(unsigned char c) {
     return c >= '0' && c <= '7';
 }
 
-struct header_name_detector detect_header_name(struct header_name_detector detector, unsigned char c) {
+static struct header_name_detector detect_header_name(struct header_name_detector detector, unsigned char c) {
     if (detector.status == MATCH) detector.status = IMPOSSIBLE;
     if (detector.status == IMPOSSIBLE) return detector;
 
@@ -44,7 +44,7 @@ struct header_name_detector detect_header_name(struct header_name_detector detec
     return detector;
 }
 
-struct universal_character_name_detector detect_universal_character_name(struct universal_character_name_detector detector, unsigned char c) {
+static struct universal_character_name_detector detect_universal_character_name(struct universal_character_name_detector detector, unsigned char c) {
     if (detector.status == IMPOSSIBLE) return detector;
 
     if (detector.is_first_char && c == '\\') {
@@ -85,7 +85,7 @@ struct universal_character_name_detector detect_universal_character_name(struct 
     return detector;
 }
 
-struct identifier_detector detect_identifier(struct identifier_detector detector, unsigned char c) {
+static struct identifier_detector detect_identifier(struct identifier_detector detector, unsigned char c) {
     if (detector.status == IMPOSSIBLE) return detector;
 
     if (detector.is_first_char && isdigit(c)) {
@@ -117,7 +117,7 @@ struct identifier_detector detect_identifier(struct identifier_detector detector
     return detector;
 }
 
-struct pp_number_detector detect_pp_number(struct pp_number_detector detector, unsigned char c) {
+static struct pp_number_detector detect_pp_number(struct pp_number_detector detector, unsigned char c) {
     if (detector.status == IMPOSSIBLE) return detector;
 
     if (detector.is_first_char && isdigit(c)) {
@@ -162,7 +162,7 @@ struct pp_number_detector detect_pp_number(struct pp_number_detector detector, u
     return detector;
 }
 
-struct escape_sequence_detector detect_escape_sequence(struct escape_sequence_detector detector, unsigned char c) {
+static struct escape_sequence_detector detect_escape_sequence(struct escape_sequence_detector detector, unsigned char c) {
     if (detector.status == IMPOSSIBLE) return detector;
 
     if (detector.next_char_invalid) {
@@ -279,15 +279,15 @@ static struct char_const_str_literal_detector detect_char_const_str_literal(stru
     return detector;
 }
 
-struct char_const_str_literal_detector detect_character_constant(struct char_const_str_literal_detector detector, unsigned char c) {
+static struct char_const_str_literal_detector detect_character_constant(struct char_const_str_literal_detector detector, unsigned char c) {
     return detect_char_const_str_literal(detector, '\'', c);
 }
 
-struct char_const_str_literal_detector detect_string_literal(struct char_const_str_literal_detector detector, unsigned char c) {
+static struct char_const_str_literal_detector detect_string_literal(struct char_const_str_literal_detector detector, unsigned char c) {
     return detect_char_const_str_literal(detector, '"', c);
 }
 
-struct punctuator_detector detect_punctuator(struct punctuator_detector detector, unsigned char c) {
+static struct punctuator_detector detect_punctuator(struct punctuator_detector detector, unsigned char c) {
 
     if (detector.status == IMPOSSIBLE) return detector;
 
@@ -312,7 +312,41 @@ static struct single_char_detector detect_single_char(struct single_char_detecto
     return detector;
 }
 
-struct preprocessing_token_detector detect_preprocessing_token(struct preprocessing_token_detector detector, unsigned char c, enum exclude_from_detection exclude) {
+static struct comment_detector detect_comment(struct comment_detector detector, unsigned char c) {
+    if (detector.status == IMPOSSIBLE) return detector;
+
+    detector.prev_status = detector.status;
+
+    if (detector.next_char_invalid) {
+        detector.status = IMPOSSIBLE;
+    } else if (detector.is_first_char && c != '/') {
+        detector.status = IMPOSSIBLE;
+    } else if (detector.is_first_char) {}
+    else if (detector.is_second_char && c == '/') {
+        detector.is_multiline = false;
+        detector.status = MATCH;
+    } else if (detector.is_second_char && c == '*') {
+        detector.is_multiline = true;
+        detector.status = MATCH;
+    } else if (detector.is_second_char) {
+        detector.status = IMPOSSIBLE;
+    } else if (detector.is_multiline && detector.prev_char == '*' && c == '/') {
+        detector.next_char_invalid = true;
+    } else if (!detector.is_multiline && c == '\n') {
+        detector.status = IMPOSSIBLE;
+    }
+
+    if (detector.is_second_char) detector.is_second_char = false;
+    if (detector.is_first_char) {
+        detector.is_first_char = false;
+        detector.is_second_char = true;
+    }
+    detector.prev_char = c;
+
+    return detector;
+}
+
+static struct preprocessing_token_detector detect_preprocessing_token(struct preprocessing_token_detector detector, unsigned char c, enum exclude_from_detection exclude) {
     if (detector.status == IMPOSSIBLE) return detector;
 
     detector.prev_status = detector.status;
@@ -353,40 +387,6 @@ struct preprocessing_token_detector detect_preprocessing_token(struct preprocess
         detector.is_first_char = false;
         detector.was_first_char = true;
     }
-
-    return detector;
-}
-
-struct comment_detector detect_comment(struct comment_detector detector, unsigned char c) {
-    if (detector.status == IMPOSSIBLE) return detector;
-
-    detector.prev_status = detector.status;
-
-    if (detector.next_char_invalid) {
-        detector.status = IMPOSSIBLE;
-    } else if (detector.is_first_char && c != '/') {
-        detector.status = IMPOSSIBLE;
-    } else if (detector.is_first_char) {}
-    else if (detector.is_second_char && c == '/') {
-        detector.is_multiline = false;
-        detector.status = MATCH;
-    } else if (detector.is_second_char && c == '*') {
-        detector.is_multiline = true;
-        detector.status = MATCH;
-    } else if (detector.is_second_char) {
-        detector.status = IMPOSSIBLE;
-    } else if (detector.is_multiline && detector.prev_char == '*' && c == '/') {
-        detector.next_char_invalid = true;
-    } else if (!detector.is_multiline && c == '\n') {
-        detector.status = IMPOSSIBLE;
-    }
-
-    if (detector.is_second_char) detector.is_second_char = false;
-    if (detector.is_first_char) {
-        detector.is_first_char = false;
-        detector.is_second_char = true;
-    }
-    detector.prev_char = c;
 
     return detector;
 }
