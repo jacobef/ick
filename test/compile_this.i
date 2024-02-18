@@ -15,6 +15,22 @@
 
 #define OPT(_name, _rule) PR_RULE(_name, ALT(OPT_ONE, NT_SYM(_rule)), EMPTY_ALT(OPT_NONE))
 #define ABC wjefiowjfoiwej
+#define DEF
+#define GHI()
+#define JKL(...)
+#define MNO(x)
+
+#define SIMPLE_MACRO
+#define PARAM_MACRO(x, y)
+#define VARARGS_MACRO(...)
+#define MIXED_MACRO(x, y, ...)
+#define ONE_PARAM_MACRO(x)
+#define EMPTY_BODY_MACRO()
+
+ONE_PARAM_MACRO( PARAM_MACRO(1,2) a)
+MIXED_MACRO(1,2, 3,   4,5 )
+  SIMPLE_MACRO
+
 
 static bool match_preprocessing_token(__attribute__((unused)) struct preprocessing_token token) {
     return !token_is_str(token, (unsigned char*)"\n");

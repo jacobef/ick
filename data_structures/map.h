@@ -91,7 +91,7 @@
     }
 
 #define DEFINE_MAP_GET_FUNCTION(_key_t, _value_t)                                                   \
-    __attribute__((unused)) static _value_t _key_t##_##_value_t##_map##_get(_key_t##_##_value_t##_map *map_p, _key_t key) { \
+    __attribute__((unused)) static _value_t _key_t##_##_value_t##_map##_get(const _key_t##_##_value_t##_map *map_p, _key_t key) { \
         size_t entry_index = MAP_CALL_HASH_FUNC(map_p, key);                                        \
         NODE_T(_key_t, _value_t) *node = map_p->buckets[entry_index];                               \
         while (node != NULL) {                                                                      \
@@ -105,7 +105,7 @@
     }
 
 #define DEFINE_MAP_CONTAINS_FUNCTION(_key_t, _value_t)                                               \
-    __attribute__((unused)) static bool _key_t##_##_value_t##_map##_contains(_key_t##_##_value_t##_map *map_p, _key_t key) { \
+    __attribute__((unused)) static bool _key_t##_##_value_t##_map##_contains(const _key_t##_##_value_t##_map *map_p, _key_t key) { \
         size_t entry_index = MAP_CALL_HASH_FUNC(map_p, key);                                         \
         NODE_T(_key_t, _value_t) *node = map_p->buckets[entry_index];                                \
         while (node != NULL) {                                                                       \

@@ -331,6 +331,38 @@ void print_tree(struct earley_rule *root, size_t indent) {
     }
 }
 
+static pp_token_vec macro_replace_tokens(pp_token_vec tokens, const str_view_macro_args_and_body_map macros) {
+    pp_token_vec out_tokens;
+    pp_token_vec_init(&out_tokens, 0);
+
+    for (size_t i = 0; i < tokens.n_elements; i++) {
+        if (str_view_macro_args_and_body_map_contains(&macros, tokens.arr[i].name)) {
+            struct macro_args_and_body macro_def = str_view_macro_args_and_body_map_get(&macros, tokens.arr[i].name);
+            struct macro_use_info use_info = get_macro_use_info(tokens, i, macro_def);
+            reconstruct_macro_use(use_info);
+        }
+    }
+
+    return out_tokens;
+}
+
+static pp_token_vec get_text_line_tokens(struct earley_rule text_line) {
+    pp_token_vec text_line_tokens;
+    pp_token_vec_init(&text_line_tokens, 0);
+
+    struct earley_rule *tokens_not_starting_with_hashtag_opt_rule = text_line.completed_from.arr[0];
+    if (tokens_not_starting_with_hashtag_opt_rule->rhs.tag == OPT_NONE) {
+        return text_line_tokens;
+    }
+    struct earley_rule *tokens_not_starting_with_hashtag_rule = tokens_not_starting_with_hashtag_opt_rule->completed_from.arr[0];
+
+    for (size_t i = 0; i < tokens_not_starting_with_hashtag_rule->completed_from.n_elements; i++) {
+        struct earley_rule *non_hashtag_rule = tokens_not_starting_with_hashtag_rule->completed_from.arr[i];
+        pp_token_vec_append(&text_line_tokens, non_hashtag_rule->rhs.symbols[0].val.terminal.token);
+    }
+
+    return text_line_tokens;
+}
 
 static void deal_with_macros(struct earley_rule root) {
     struct earley_rule group_opt_rule = *root.completed_from.arr[0];
@@ -358,6 +390,9 @@ static void deal_with_macros(struct earley_rule root) {
                 print_macros(&macros);
                 printf("\n");
             }
+        } else if (group_part_rule.rhs.tag == GROUP_PART_TEXT) {
+            struct earley_rule text_line_rule = *group_part_rule.completed_from.arr[0];
+            macro_replace_tokens(get_text_line_tokens(text_line_rule), macros);
         }
     }
 }
