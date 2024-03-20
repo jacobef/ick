@@ -63,27 +63,7 @@ int main(int argc, char *argv[]) {
     fclose(output_file);
 
     pp_token_vec tokens = get_pp_tokens(logical_lines);
-    for (size_t i = 0; i < tokens.n_elements; i++) {
-        struct preprocessing_token token = tokens.arr[i];
-        for (size_t j = 0; j < token.name.n; j++) {
-            if (token.name.first[j] == '\n') {
-                printf("[newline]");
-            } else {
-                printf("%c", token.name.first[j]);
-            }
-        }
-        printf (" (");
-        if (token.type == HEADER_NAME) printf("header name");
-        else if (token.type == IDENTIFIER) printf("identifier");
-        else if (token.type == PP_NUMBER) printf("preprocessing number");
-        else if (token.type == CHARACTER_CONSTANT) printf("character constant");
-        else if (token.type == STRING_LITERAL) printf("string literal");
-        else if (token.type == PUNCTUATOR) printf("punctuator");
-        else if (token.type == SINGLE_CHAR) printf("single character");
-        printf(")");
-        if (token.after_whitespace) printf(" (after whitespace)");
-        printf("\n");
-    }
+//    print_tokens(tokens);
 
     test_parser(tokens);
 

@@ -401,15 +401,12 @@ static enum pp_token_type get_token_type(struct preprocessing_token_detector det
     else if (detector.comment_detector.status == MATCH) return COMMENT;
     else if (detector.single_char_detector.status == MATCH) return SINGLE_CHAR;
     else {
-        preprocessor_fatal_error(0, 0, 0, "momento de bruh");
+        preprocessor_fatal_error(0, 0, 0, "token doesn't seem to have a type");
     }
 }
 
 bool token_is_str(struct preprocessing_token token, const unsigned char *str) {
-    for (size_t i = 0; i < token.name.n; i++) {
-        if (str[i] == '\0' || token.name.first[i] != str[i]) return false;
-    }
-    return str[token.name.n] == '\0';
+    return str_view_cstr_eq(token.name, str);
 }
 
 static bool in_include_directive(pp_token_vec tokens) {
@@ -422,7 +419,7 @@ static bool in_include_directive(pp_token_vec tokens) {
     return after_hashtag_include && (at_beginning_of_file || hashtag_after_newline);
 }
 
-pp_token_vec get_pp_tokens(struct str_view input) {
+static struct preprocessing_token_detector get_initial_detector(void) {
     struct char_const_str_literal_detector initial_ccsld = {.status=INCOMPLETE, .looking_for_open_quote=true, .in_literal=false,
             .prev_esc_seq_status=INCOMPLETE, .is_first_char=true, .just_opened=false,
             .esc_seq_detector={.status=INCOMPLETE, .looking_for_hex=false, .looking_for_octal=false,
@@ -434,21 +431,41 @@ pp_token_vec get_pp_tokens(struct str_view input) {
             .header_name_detector={.status=INCOMPLETE, .is_first_char=true},
             .identifier_detector={.is_first_char=true, .status=INCOMPLETE, .ucn_detector=initial_ucn_detector},
             .pp_number_detector={.status=INCOMPLETE, .looking_for_digit=false, .looking_for_ucn=false,
-                                 .accepting_sign=false, .is_first_char=true,.ucn_detector=initial_ucn_detector},
+                    .accepting_sign=false, .is_first_char=true,.ucn_detector=initial_ucn_detector},
             .character_constant_detector=initial_ccsld,
             .string_literal_detector=initial_ccsld,
             .punctuator_detector={.status=INCOMPLETE, .place_in_trie=&punctuators_trie},
             .single_char_detector={.status=INCOMPLETE},
             .comment_detector={.status=INCOMPLETE, .prev_status=INCOMPLETE, .is_multiline=false,
-                               .is_first_char=true, .is_second_char=false, .next_char_invalid=false},
+                    .is_first_char=true, .is_second_char=false, .next_char_invalid=false},
             .is_first_char=true,
             .was_first_char=false,
     };
+    return initial_detector;
+}
 
+bool is_valid_token(struct str_view token, enum exclude_from_detection exclude) {
+    struct preprocessing_token_detector detector = get_initial_detector();
+    for (size_t i = 0; i < token.n; i++) {
+        detector = detect_preprocessing_token(detector, token.first[i], exclude);
+    }
+    return detector.status == MATCH;
+}
+
+enum pp_token_type get_token_type_from_str(struct str_view token, enum exclude_from_detection exclude) {
+    struct preprocessing_token_detector detector = get_initial_detector();
+    for (size_t i = 0; i < token.n; i++) {
+        detector = detect_preprocessing_token(detector, token.first[i], exclude);
+    }
+    return get_token_type(detector);
+}
+
+
+pp_token_vec get_pp_tokens(struct str_view input) {
     pp_token_vec tokens;
     pp_token_vec_init(&tokens, 0);
     bool match_exists = false;
-    struct preprocessing_token_detector token_detector = initial_detector;
+    struct preprocessing_token_detector token_detector = get_initial_detector();
     struct preprocessing_token_detector detector_at_most_recent_match;
 
     struct preprocessing_token token; // scary
@@ -480,7 +497,7 @@ pp_token_vec get_pp_tokens(struct str_view input) {
                 match_exists = false;
                 char_p = token_at_most_recent_match.name.first + token_at_most_recent_match.name.n - 1;
             }
-            token_detector = initial_detector;
+            token_detector = get_initial_detector();
         }
     }
 
@@ -499,4 +516,38 @@ pp_token_vec get_pp_tokens(struct str_view input) {
     pp_token_vec_free_internals(&tokens);
 
     return tokens_without_comments;
+}
+
+void print_tokens(pp_token_vec tokens) {
+    for (size_t i = 0; i < tokens.n_elements; i++) {
+        struct preprocessing_token token = tokens.arr[i];
+        for (size_t j = 0; j < token.name.n; j++) {
+            if (token.name.first[j] == '\n') {
+                printf("[newline]");
+            } else {
+                printf("%c", token.name.first[j]);
+            }
+        }
+        printf (" (");
+        if (token.type == HEADER_NAME) printf("header name");
+        else if (token.type == IDENTIFIER) printf("identifier");
+        else if (token.type == PP_NUMBER) printf("preprocessing number");
+        else if (token.type == CHARACTER_CONSTANT) printf("character constant");
+        else if (token.type == STRING_LITERAL) printf("string literal");
+        else if (token.type == PUNCTUATOR) printf("punctuator");
+        else if (token.type == SINGLE_CHAR) printf("single character");
+        printf(")");
+        if (token.after_whitespace) printf(" (after whitespace)");
+        printf("\n");
+    }
+
+    // print normally
+    for (size_t i = 0; i < tokens.n_elements; i++) {
+        struct preprocessing_token token = tokens.arr[i];
+        for (size_t j = 0; j < token.name.n; j++) {
+            printf("%c", token.name.first[j]);
+        }
+        printf(" ");
+    }
+    printf("\n");
 }

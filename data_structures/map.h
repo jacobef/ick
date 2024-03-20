@@ -129,6 +129,23 @@
         _key_t##_##_value_t##_map##_add_unchecked_no_expand(map_p, key, value);                                            \
     }
 
+#define DEFINE_MAP_REMOVE_FUNCTION(_key_t, _value_t)                                                                       \
+    __attribute__((unused)) static bool _key_t##_##_value_t##_map##_remove(_key_t##_##_value_t##_map *map_p, _key_t key) { \
+        size_t bucket_index = MAP_CALL_HASH_FUNC(map_p, key);                                                              \
+        NODE_T(_key_t, _value_t) **node_ptr = &map_p->buckets[bucket_index];                                               \
+        while (*node_ptr != NULL) {                                                                                        \
+            NODE_T(_key_t, _value_t) *current_node = *node_ptr;                                                            \
+            if (MAP_CALL_KEYS_EQUAL(map_p, current_node->key, key)) {                                                      \
+                *node_ptr = current_node->next;                                                                            \
+                FREE(current_node);                                                                                        \
+                map_p->n_elements--;                                                                                       \
+                return true;                                                                                               \
+            }                                                                                                              \
+            node_ptr = &current_node->next;                                                                                \
+        }                                                                                                                  \
+        return false;                                                                                                      \
+    }
+
 #define DEFINE_MAP_FREE_INTERNALS_FUNCTION(_key_t, _value_t)                                   \
     __attribute__((unused)) static void _key_t##_##_value_t##_map##_free_internals(_key_t##_##_value_t##_map *map_p) { \
         for (size_t i = 0; i < map_p->n_buckets; i++) {                                        \
@@ -151,6 +168,7 @@
     DEFINE_MAP_GET_FUNCTION(_key_t, _value_t)                                         \
     DEFINE_MAP_CONTAINS_FUNCTION(_key_t, _value_t)                                    \
     DEFINE_MAP_ADD_FUNCTION(_key_t, _value_t)                                         \
+    DEFINE_MAP_REMOVE_FUNCTION(_key_t, _value_t)                                      \
     DEFINE_MAP_FREE_INTERNALS_FUNCTION(_key_t, _value_t)
 
 #endif //ICK_DATA_STRUCTURES_MAP_H

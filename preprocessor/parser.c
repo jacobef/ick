@@ -331,26 +331,11 @@ void print_tree(struct earley_rule *root, size_t indent) {
     }
 }
 
-static pp_token_vec macro_replace_tokens(pp_token_vec tokens, const str_view_macro_args_and_body_map macros) {
-    pp_token_vec out_tokens;
-    pp_token_vec_init(&out_tokens, 0);
-
-    for (size_t i = 0; i < tokens.n_elements; i++) {
-        if (str_view_macro_args_and_body_map_contains(&macros, tokens.arr[i].name)) {
-            struct macro_args_and_body macro_def = str_view_macro_args_and_body_map_get(&macros, tokens.arr[i].name);
-            struct macro_use_info use_info = get_macro_use_info(tokens, i, macro_def);
-            reconstruct_macro_use(use_info);
-        }
-    }
-
-    return out_tokens;
-}
-
-static pp_token_vec get_text_line_tokens(struct earley_rule text_line) {
+static pp_token_vec get_text_line_tokens(struct earley_rule text_line_rule) {
     pp_token_vec text_line_tokens;
     pp_token_vec_init(&text_line_tokens, 0);
 
-    struct earley_rule *tokens_not_starting_with_hashtag_opt_rule = text_line.completed_from.arr[0];
+    struct earley_rule *tokens_not_starting_with_hashtag_opt_rule = text_line_rule.completed_from.arr[0];
     if (tokens_not_starting_with_hashtag_opt_rule->rhs.tag == OPT_NONE) {
         return text_line_tokens;
     }
@@ -375,6 +360,8 @@ static void deal_with_macros(struct earley_rule root) {
     str_view_macro_args_and_body_map macros;
     str_view_macro_args_and_body_map_init(&macros, 0);
 
+    pp_token_vec text_section;
+    pp_token_vec_init(&text_section, 0);
     for (size_t i = 0; i < group_rule.completed_from.n_elements; i++) {
         struct earley_rule group_part_rule = *group_rule.completed_from.arr[i];
         if (group_part_rule.rhs.tag == GROUP_PART_CONTROL) {
@@ -389,12 +376,19 @@ static void deal_with_macros(struct earley_rule root) {
                 print_with_color(TEXT_COLOR_LIGHT_RED, "Defined macro, all macros:\n");
                 print_macros(&macros);
                 printf("\n");
+            } else if (control_line_rule.rhs.tag == CONTROL_LINE_UNDEF) {
+                if (!str_view_macro_args_and_body_map_remove(&macros, control_line_rule.completed_from.arr[0]->rhs.symbols[0].val.terminal.token.name)) {
+                    preprocessor_fatal_error(0, 0, 0, "Can't undefine a macro that doesn't exist");
+                }
             }
         } else if (group_part_rule.rhs.tag == GROUP_PART_TEXT) {
             struct earley_rule text_line_rule = *group_part_rule.completed_from.arr[0];
-            macro_replace_tokens(get_text_line_tokens(text_line_rule), macros);
+            pp_token_vec text_line_tokens = get_text_line_tokens(text_line_rule);
+            pp_token_vec_append_all(&text_section, &text_line_tokens);
         }
     }
+    pp_token_vec replaced = replace_macros(text_section, macros);
+    print_tokens(replaced);
 }
 
 void test_parser(pp_token_vec tokens) {
@@ -411,6 +405,6 @@ void test_parser(pp_token_vec tokens) {
     }
     flatten_list_rules(root);
     deal_with_macros(*root);
-    print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");
-    print_tree(root, 0);
+//    print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");
+//    print_tree(root, 0);
 }

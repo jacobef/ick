@@ -122,6 +122,11 @@ typedef struct preprocessing_token pp_token;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(pp_token)
 pp_token_vec get_pp_tokens(struct str_view input);
 
+bool is_valid_token(struct str_view token, enum exclude_from_detection exclude);
+enum pp_token_type get_token_type_from_str(struct str_view token, enum exclude_from_detection exclude);
+
+void print_tokens(pp_token_vec tokens);
+
 static struct trie punctuators_trie = {
     /*
     punctuators:

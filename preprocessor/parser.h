@@ -70,6 +70,7 @@ extern const struct production_rule group_part;
 extern const struct production_rule if_section;
 extern const struct production_rule if_group;
 extern const struct production_rule elif_groups;
+extern const struct production_rule elif_groups_opt;
 extern const struct production_rule elif_group;
 extern const struct production_rule else_group;
 extern const struct production_rule else_group_opt;
@@ -89,7 +90,14 @@ extern const struct production_rule pp_tokens_opt;
 extern const struct production_rule identifier_list;
 extern const struct production_rule identifier_list_opt;
 extern const struct production_rule identifier;
+extern const struct production_rule identifier_opt;
+extern const struct production_rule string_literal;
 
+extern const struct production_rule constant;
+extern const struct production_rule integer_constant;
+extern const struct production_rule character_constant;
+extern const struct production_rule floating_constant;
+extern const struct production_rule enumeration_constant;
 extern const struct production_rule constant_expression;
 extern const struct production_rule conditional_expression;
 extern const struct production_rule logical_or_expression;
@@ -104,6 +112,58 @@ extern const struct production_rule additive_expression;
 extern const struct production_rule multiplicative_expression;
 extern const struct production_rule cast_expression;
 extern const struct production_rule unary_expression;
+extern const struct production_rule unary_operator;
+extern const struct production_rule postfix_expression;
+extern const struct production_rule primary_expression;
+extern const struct production_rule assignment_expression;
+extern const struct production_rule assignment_expression_opt;
+extern const struct production_rule assignment_operator;
+extern const struct production_rule expression;
+
+extern const struct production_rule initializer_list;
+extern const struct production_rule argument_expression_list;
+extern const struct production_rule argument_expression_list_opt;
+extern const struct production_rule designation;
+extern const struct production_rule designation_opt;
+extern const struct production_rule designator_list;
+extern const struct production_rule designator;
+extern const struct production_rule initializer;
+extern const struct production_rule abstract_declarator;
+extern const struct production_rule abstract_declarator_opt;
+extern const struct production_rule direct_abstract_declarator;
+extern const struct production_rule direct_abstract_declarator_opt;
+extern const struct production_rule parameter_type_list;
+extern const struct production_rule parameter_type_list_opt;
+extern const struct production_rule parameter_list;
+extern const struct production_rule parameter_declaration;
+extern const struct production_rule specifier_qualifier_list;
+extern const struct production_rule specifier_qualifier_list_opt;
+extern const struct production_rule declaration_specifiers;
+extern const struct production_rule declaration_specifiers_opt;
+extern const struct production_rule storage_class_specifier;
+extern const struct production_rule function_specifier;
+extern const struct production_rule storage_class_specifier;
+extern const struct production_rule type_name;
+extern const struct production_rule type_specifier;
+extern const struct production_rule struct_or_union_specifier;
+extern const struct production_rule struct_or_union;
+extern const struct production_rule struct_declaration_list;
+extern const struct production_rule struct_declaration;
+extern const struct production_rule struct_declarator_list;
+extern const struct production_rule struct_declarator;
+extern const struct production_rule declarator;
+extern const struct production_rule declarator_opt;
+extern const struct production_rule direct_declarator;
+extern const struct production_rule enum_specifier;
+extern const struct production_rule enumerator_list;
+extern const struct production_rule enumerator;
+extern const struct production_rule type_qualifier;
+extern const struct production_rule type_qualifier_list;
+extern const struct production_rule type_qualifier_list_opt;
+extern const struct production_rule typedef_name;
+extern const struct production_rule pointer;
+extern const struct production_rule pointer_opt;
+
 
 extern const struct production_rule rule_preprocessing_token;
 
@@ -120,6 +180,248 @@ enum group_part_tag { GROUP_PART_IF, GROUP_PART_CONTROL, GROUP_PART_TEXT, GROUP_
 //           # ifdef identifier new-line group_opt
 //           # ifndef identifier new-line group_opt
 enum if_group_tag { IF_GROUP_IF, IF_GROUP_IFDEF, IF_GROUP_IFNDEF };
+
+
+enum cond_expr_tag { COND_EXPR_LOGICAL_OR, COND_EXPR_NORMAL };
+
+enum constant_tag {
+    CONSTANT_INTEGER,
+    CONSTANT_CHARACTER,
+    CONSTANT_FLOAT,
+    CONSTANT_ENUM
+};
+
+enum logical_or_expr_tag {
+    LOGICAL_OR_EXPR_LOGICAL_AND,
+    LOGICAL_OR_EXPR_NORMAL
+};
+
+enum logical_and_expr_tag {
+    LOGICAL_AND_EXPR_INCLUSIVE_OR,
+    LOGICAL_AND_EXPR_NORMAL
+};
+
+enum inclusive_or_expr_tag {
+    INCLUSIVE_OR_EXPR_EXCLUSIVE_OR,
+    INCLUSIVE_OR_EXPR_NORMAL
+};
+
+enum exclusive_or_expr_tag {
+    EXCLUSIVE_OR_EXPR_AND,
+    EXCLUSIVE_OR_EXPR_NORMAL
+};
+
+enum and_expr_tag {
+    AND_EXPR_EQUALITY,
+    AND_EXPR_NORMAL
+};
+
+enum equality_expr_tag {
+    EQUALITY_EXPR_RELATIONAL,
+    EQUALITY_EXPR_EQUAL,
+    EQUALITY_EXPR_NOT_EQUAL
+};
+
+enum relational_expr_tag {
+    RELATIONAL_EXPR_SHIFT,
+    RELATIONAL_EXPR_LESS,
+    RELATIONAL_EXPR_GREATER,
+    RELATIONAL_EXPR_LEQ,
+    RELATIONAL_EXPR_GEQ
+};
+
+enum shift_expr_tag {
+    SHIFT_EXPR_ADDITIVE,
+    SHIFT_EXPR_LEFT,
+    SHIFT_EXPR_RIGHT
+};
+
+enum add_expr_tag {
+    ADDITIVE_EXPR_MULT,
+    ADDITIVE_EXPR_PLUS,
+    ADDITIVE_EXPR_MINUS
+};
+
+enum mult_expr_tag {
+    MULTIPLICATIVE_EXPR_CAST,
+    MULTIPLICATIVE_EXPR_MULT,
+    MULTIPLICATIVE_EXPR_DIV,
+    MULTIPLICATIVE_EXPR_MOD
+};
+
+enum cast_expr_tag {
+    CAST_EXPR_UNARY,
+    CAST_EXPR_NORMAL
+};
+
+enum unary_expr_tag {
+    UNARY_EXPR_POSTFIX,
+    UNARY_EXPR_INC,
+    UNARY_EXPR_DEC,
+    UNARY_EXPR_UNARY_OP,
+    UNARY_EXPR_SIZEOF_UNARY,
+    UNARY_EXPR_SIZEOF_TYPE
+};
+
+enum unary_operator_tag {
+    UNARY_OPERATOR_PLUS,
+    UNARY_OPERATOR_MINUS,
+    UNARY_OPERATOR_BITWISE_NOT,
+    UNARY_OPERATOR_LOGICAL_NOT,
+    UNARY_OPERATOR_DEREFERENCE,
+    UNARY_OPERATOR_ADDRESS_OF
+};
+
+enum assignment_operator_tag {
+    ASSIGNMENT_OPERATOR_ASSIGN,
+    ASSIGNMENT_OPERATOR_MULTIPLY_ASSIGN,
+    ASSIGNMENT_OPERATOR_DIVIDE_ASSIGN,
+    ASSIGNMENT_OPERATOR_MODULO_ASSIGN,
+    ASSIGNMENT_OPERATOR_ADD_ASSIGN,
+    ASSIGNMENT_OPERATOR_SUBTRACT_ASSIGN,
+    ASSIGNMENT_OPERATOR_SHIFT_LEFT_ASSIGN,
+    ASSIGNMENT_OPERATOR_SHIFT_RIGHT_ASSIGN,
+    ASSIGNMENT_OPERATOR_BITWISE_AND_ASSIGN,
+    ASSIGNMENT_OPERATOR_BITWISE_XOR_ASSIGN,
+    ASSIGNMENT_OPERATOR_BITWISE_OR_ASSIGN
+};
+
+enum postfix_expr_tag {
+    POSTFIX_EXPR_PRIMARY,
+    POSTFIX_EXPR_ARRAY_ACCESS,
+    POSTFIX_EXPR_FUNC,
+    POSTFIX_EXPR_DOT,
+    POSTFIX_EXPR_ARROW,
+    POSTFIX_EXPR_INC,
+    POSTFIX_EXPR_DEC,
+    POSTFIX_EXPR_TYPE_NAME
+};
+
+enum primary_expr_tag {
+    PRIMARY_EXPR_IDENTIFIER,
+    PRIMARY_EXPR_CONSTANT,
+    PRIMARY_EXPR_STRING,
+    PRIMARY_EXPR_PARENS
+};
+
+enum assignment_expr_tag {
+    ASSIGNMENT_EXPR_CONDITIONAL,
+    ASSIGNMENT_EXPR_NORMAL
+};
+
+enum designator_tag {
+    DESIGNATOR_ARRAY,
+    DESIGNATOR_DOT
+};
+
+enum initializer_tag {
+    INITIALIZER_ASSIGNMENT,
+    INITIALIZER_BRACES,
+    INITIALIZER_BRACES_TRAILING_COMMA
+};
+
+enum direct_declarator_tag {
+    DIRECT_DECLARATOR_IDENTIFIER,
+    DIRECT_DECLARATOR_PARENS,
+    DIRECT_DECLARATOR_ARRAY,
+    DIRECT_DECLARATOR_ARRAY_STATIC,
+    DIRECT_DECLARATOR_ARRAY_STATIC_2,
+    DIRECT_DECLARATOR_ARRAY_ASTERISK,
+    DIRECT_DECLARATOR_FUNCTION,
+    DIRECT_DECLARATOR_FUNCTION_OLD
+};
+
+enum abstract_declarator_tag {
+    ABSTRACT_DECLARATOR_POINTER,
+    ABSTRACT_DECLARATOR_DIRECT
+};
+
+enum direct_abstract_declarator_tag {
+    DIRECT_ABSTRACT_DECLARATOR_PARENS,
+    DIRECT_ABSTRACT_DECLARATOR_ARRAY,
+    DIRECT_ABSTRACT_DECLARATOR_ARRAY_STATIC,
+    DIRECT_ABSTRACT_DECLARATOR_ARRAY_QUALIFIER_STATIC,
+    DIRECT_ABSTRACT_DECLARATOR_ARRAY_ASTERISK
+};
+
+enum specifier_qualifier_list_tag {
+    SPECIFIER_QUALIFIER_LIST_SPECIFIER,
+    SPECIFIER_QUALIFIER_LIST_QUALIFIER
+};
+
+enum type_specifier_tag {
+    TYPE_SPECIFIER_VOID,
+    TYPE_SPECIFIER_CHAR,
+    TYPE_SPECIFIER_SHORT,
+    TYPE_SPECIFIER_INT,
+    TYPE_SPECIFIER_LONG,
+    TYPE_SPECIFIER_FLOAT,
+    TYPE_SPECIFIER_DOUBLE,
+    TYPE_SPECIFIER_SIGNED,
+    TYPE_SPECIFIER_UNSIGNED,
+    TYPE_SPECIFIER_BOOL,
+    TYPE_SPECIFIER_COMPLEX,
+    TYPE_SPECIFIER_STRUCT_OR_UNION,
+    TYPE_SPECIFIER_ENUM,
+    TYPE_SPECIFIER_TYPEDEF_NAME
+};
+
+enum struct_or_union_specifier_tag {
+    STRUCT_OR_UNION_SPECIFIER_DEFINITION,
+    STRUCT_OR_UNION_SPECIFIER_DECLARATION
+};
+
+enum struct_or_union_tag {
+    STRUCT_OR_UNION_STRUCT,
+    STRUCT_OR_UNION_UNION
+};
+
+enum struct_declarator_tag {
+    STRUCT_DECLARATOR_NORMAL,
+    STRUCT_DECLARATOR_BITFIELD
+};
+
+enum enum_specifier_tag {
+    ENUM_SPECIFIER_DEFINITION,
+    ENUM_SPECIFIER_DEFINITION_TRAILING_COMMA,
+    ENUM_SPECIFIER_DECLARATION
+};
+
+enum enumerator_tag {
+    ENUMERATOR_NO_ASSIGNMENT,
+    ENUMERATOR_ASSIGNMENT
+};
+
+enum type_qualifier_tag {
+    TYPE_QUALIFIER_CONST,
+    TYPE_QUALIFIER_RESTRICT,
+    TYPE_QUALIFIER_VOLATILE
+};
+
+enum parameter_type_list_tag {
+    PARAMETER_TYPE_LIST_ELLIPSIS,
+    PARAMETER_TYPE_LIST_NO_ELLIPSIS,
+};
+
+enum parameter_declaration_tag {
+    PARAMETER_DECLARATION_DECLARATOR,
+    PARAMETER_DECLARATION_ABSTRACT,
+};
+
+enum declaration_specifiers_tag {
+    DECLARATION_SPECIFIERS_STORAGE_CLASS,
+    DECLARATION_SPECIFIERS_TYPE_SPECIFIER,
+    DECLARATION_SPECIFIERS_TYPE_QUALIFIER,
+    DECLARATION_SPECIFIERS_FUNCTION_SPECIFIER
+};
+
+enum storage_class_specifier_tag {
+    STORAGE_CLASS_SPECIFIER_TYPEDEF,
+    STORAGE_CLASS_SPECIFIER_EXTERN,
+    STORAGE_CLASS_SPECIFIER_STATIC,
+    STORAGE_CLASS_SPECIFIER_AUTO,
+    STORAGE_CLASS_SPECIFIER_REGISTER
+};
 
 // control-line:
 // # include pp-tokens new-line
@@ -145,5 +447,6 @@ enum control_line_tag {
     CONTROL_LINE_EMPTY
 };
 
+bool match_integer_constant_wrapper(const char *str);
 
 #endif //ICK_PARSER_H

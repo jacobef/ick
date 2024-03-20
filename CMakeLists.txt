@@ -12,6 +12,7 @@ set(SOURCE_FILES
         preprocessor/macro_expansion.c
         preprocessor/macro_expansion.h
         preprocessor/rule_definitions.c
+        preprocessor/sized_str.c
 )
 
 project(ick C)

@@ -2,6 +2,7 @@
 #define ICK_DATA_STRUCTURES_VECTOR_VECTOR_H
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "debug/reminder.h"
@@ -54,21 +55,29 @@ static void _type##_vec##_append(_type##_vec *vec_p, _type element) {         \
     vec_p->n_elements++;                                                      \
 }
 
-#define DEFINE_VEC_APPEND_ALL_FUNCTION(_type) \
-__attribute__((unused))                             \
+#define DEFINE_VEC_APPEND_ALL_FUNCTION(_type)                               \
+__attribute__((unused))                                                     \
 static void _type##_vec##_append_all(_type##_vec *dest, _type##_vec *src) { \
-    for (size_t i = 0; i < src->n_elements; i++) {                                 \
-        _type##_vec##_append(dest, _type##_vec##_at(src, i));                      \
-    }                                                                              \
+    for (size_t i = 0; i < src->n_elements; i++) {                          \
+        _type##_vec##_append(dest, _type##_vec##_at(src, i));               \
+    }                                                                       \
 }
 
-#define DEFINE_VEC_COPY_FUNCTION(_type)                                            \
-__attribute__((unused))                             \
+#define DEFINE_VEC_APPEND_ALL_ARR_FUNCTION(_type)                                         \
+__attribute__((unused))                                                                   \
+static void _type##_vec##_append_all_arr(_type##_vec *dest, const _type *arr, size_t n) { \
+    for (size_t i = 0; i < n; i++) {                                                      \
+        _type##_vec##_append(dest, arr[i]);                                               \
+    }                                                                                     \
+}
+
+#define DEFINE_VEC_COPY_FUNCTION(_type)                                     \
+__attribute__((unused))                                                     \
 static void _type##_vec##_copy(_type##_vec *dest, const _type##_vec *src) { \
-    _type##_vec##_shrink_retain_capacity(dest, dest->n_elements);                  \
-    for (size_t i = 0; i < src->n_elements; i++) {                                 \
-        _type##_vec##_append(dest, _type##_vec##_at(src, i));                      \
-    }                                                                              \
+    _type##_vec##_shrink_retain_capacity(dest, dest->n_elements);           \
+    for (size_t i = 0; i < src->n_elements; i++) {                          \
+        _type##_vec##_append(dest, _type##_vec##_at(src, i));               \
+    }                                                                       \
 }
 
 #define DEFINE_VEC_POP_FUNCTION(_type)              \
@@ -92,6 +101,7 @@ static void _type##_vec##_free_internals(_type##_vec *vec_p) {  \
     DEFINE_VEC_SHRINK_RETAIN_CAPACITY_FUNCTION(_type) \
     DEFINE_VEC_APPEND_FUNCTION(_type)                 \
     DEFINE_VEC_APPEND_ALL_FUNCTION(_type)             \
+    DEFINE_VEC_APPEND_ALL_ARR_FUNCTION(_type)         \
     DEFINE_VEC_COPY_FUNCTION(_type)                   \
     DEFINE_VEC_POP_FUNCTION(_type)                    \
     DEFINE_VEC_FREE_INTERNALS_FUNCTION(_type)         \
