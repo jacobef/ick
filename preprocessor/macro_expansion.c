@@ -174,9 +174,11 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_vec
     given_macro_arg_vec_init(&given_args, 0);
     token_with_ignore_list_vec current_arg;
     token_with_ignore_list_vec_init(&current_arg, 0);
+    token_with_ignore_list_vec varargs;
+    token_with_ignore_list_vec_init(&varargs, 0);
+    bool in_varargs = macro_def.accepts_varargs && macro_def.n_args == 0;
     int net_open_parens = 1;
     size_t i = macro_inv_start + 2; // skip the macro name and first open paren
-
     for (; i < tokens.n_elements; i++) {
         if (token_is_str(tokens.arr[i].token, (const unsigned char*)"(")) {
             net_open_parens++;
@@ -186,6 +188,8 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_vec
                 i++;
                 break;
             }
+        } else if (in_varargs) {
+            token_with_ignore_list_vec_append(&varargs, tokens.arr[i]);
         }
         if (net_open_parens == 1 && token_is_str(tokens.arr[i].token, (const unsigned char*)",")) {
             // argument-separating comma
@@ -193,6 +197,9 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_vec
                 .tokens = current_arg.arr,
                 .n_tokens = current_arg.n_elements
             });
+            if (macro_def.accepts_varargs && given_args.n_elements == macro_def.n_args) {
+                in_varargs = true;
+            }
             token_with_ignore_list_vec empty;
             token_with_ignore_list_vec_init(&empty, 0);
             current_arg = empty;
@@ -230,6 +237,8 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_vec
         .end_index = i,
         .args = given_args.arr,
         .n_args = given_args.n_elements,
+        .vararg_tokens = varargs.arr,
+        .n_vararg_tokens = varargs.n_elements,
         .is_function_like = true,
         .dont_replace = new_dont_replace,
         .is_valid = true
@@ -341,6 +350,22 @@ typedef _Bool boolean;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(boolean)
 
 static token_with_ignore_list_vec get_replacement(struct macro_args_and_body macro_info, struct macro_use_info use_info, str_view_macro_args_and_body_map macro_map) {
+    // add varargs to use info
+    given_macro_arg_vec new_given_args;
+    given_macro_arg_vec_init(&new_given_args, use_info.n_args + 1);
+    given_macro_arg_vec_append_all_arr(&new_given_args, use_info.args, macro_info.n_args); // not a typo
+    given_macro_arg_vec_append(&new_given_args, (struct given_macro_arg) { .tokens = use_info.vararg_tokens, .n_tokens = use_info.n_vararg_tokens });
+    use_info.args = new_given_args.arr;
+    use_info.n_args = new_given_args.n_elements;
+
+    // add varargs to macro info
+    str_view_vec new_arg_names;
+    str_view_vec_init(&new_arg_names, macro_info.n_args + 1);
+    str_view_vec_append_all_arr(&new_arg_names, macro_info.args, macro_info.n_args);
+    str_view_vec_append(&new_arg_names, (struct str_view) { .first = "__VA_ARGS__", .n = sizeof("__VA_ARGS__") - 1 });
+    macro_info.args = new_arg_names.arr;
+    macro_info.n_args = new_arg_names.n_elements;
+
     token_with_ignore_list_vec replaced_tokens;
     token_with_ignore_list_vec_init(&replaced_tokens, 0);
     boolean_vec needs_concat;

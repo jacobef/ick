@@ -53,11 +53,18 @@ struct given_macro_arg {
     size_t n_tokens;
 };
 
+struct given_varargs {
+    struct token_with_ignore_list *tokens;
+    size_t n_tokens;
+};
+
 struct macro_use_info {
     struct str_view macro_name;
     size_t end_index;
     struct given_macro_arg *args; // NULL if object-like, but don't depend on that behavior
     size_t n_args; // 0 if object-like, but don't depend on that behavior
+    struct token_with_ignore_list *vararg_tokens;
+    size_t n_vararg_tokens; // 0 if doesn't accept varargs, but don't depend on that behavior
     bool is_function_like;
     str_view_vec dont_replace;
     bool is_valid;
