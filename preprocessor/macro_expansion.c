@@ -40,18 +40,34 @@ static struct preprocessing_token get_macro_name_token(struct earley_rule contro
     return control_line_rule.completed_from.arr[0]->rhs.symbols[0].val.terminal.token;
 }
 
+static bool replacement_lists_identical(struct preprocessing_token *list1, size_t n1, struct preprocessing_token *list2, size_t n2) {
+    if (n1 != n2) return false;
+    for (size_t i = 0; i < n1; i++) {
+        if (!str_views_eq(list1[i].name, list2[i].name)
+        || (i != 0 && list1[i].after_whitespace != list2[i].after_whitespace)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void define_object_like_macro(struct earley_rule rule, str_view_macro_args_and_body_map *macros) {
     if (rule.lhs != &control_line || rule.rhs.tag != CONTROL_LINE_DEFINE_OBJECT_LIKE) {
         preprocessor_fatal_error(0, 0, 0, "rule passed to define_object_like_macro is not an object-like macro");
     }
     struct preprocessing_token macro_name_token = get_macro_name_token(rule);
 
+    pp_token_vec replacement_tokens = get_replacement_tokens(rule);
+
     if (str_view_macro_args_and_body_map_contains(macros, macro_name_token.name)) {
-        preprocessor_error(0, 0, 0, "macro already exists");
+        struct macro_args_and_body existing_macro = str_view_macro_args_and_body_map_get(macros, macro_name_token.name);
+        if (!replacement_lists_identical(replacement_tokens.arr, replacement_tokens.n_elements,
+                                        existing_macro.replacements, existing_macro.n_replacements)) {
+            preprocessor_error(0, 0, 0, "macro already exists");
+        }
         return;
     }
 
-    pp_token_vec replacement_tokens = get_replacement_tokens(rule);
 
     struct macro_args_and_body out = {
             .is_function_like = false,
@@ -108,18 +124,34 @@ static str_view_vec get_macro_params(struct earley_rule control_line_rule) {
     return params;
 }
 
+static bool args_identical(struct str_view *args1, size_t n1, struct str_view *args2, size_t n2) {
+    if (n1 != n2) return false;
+    for (size_t i = 0; i < n1; i++) {
+        if (!str_views_eq(args1[i], args2[i])) return false;
+    }
+    return true;
+}
+
 void define_function_like_macro(struct earley_rule rule, str_view_macro_args_and_body_map *macros) {
     if (rule.lhs != &control_line || (rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_MIXED_ARGS && rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_ONLY_VARARGS && rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_NO_VARARGS)) {
         preprocessor_fatal_error(0, 0, 0, "rule passed to define_function_like_macro is not an function-like macro");
     }
     struct preprocessing_token macro_name_token = rule.completed_from.arr[0]->rhs.symbols[0].val.terminal.token;
+    pp_token_vec replacement_tokens = get_replacement_tokens(rule);
+    str_view_vec args = get_macro_params(rule);
+
     if (str_view_macro_args_and_body_map_contains(macros, macro_name_token.name)) {
-        preprocessor_error(0, 0, 0, "macro already exists");
+        struct macro_args_and_body existing_macro = str_view_macro_args_and_body_map_get(macros, macro_name_token.name);
+        bool replacements_same = replacement_lists_identical(replacement_tokens.arr, replacement_tokens.n_elements,
+                                                                  existing_macro.replacements, existing_macro.n_replacements);
+        bool args_same = args_identical(args.arr, args.n_elements, existing_macro.args, existing_macro.n_args);
+        if (!replacements_same || !args_same) {
+            preprocessor_error(0, 0, 0, "macro already exists");
+        }
         return;
     }
 
-    pp_token_vec replacement_tokens = get_replacement_tokens(rule);
-    str_view_vec args = get_macro_params(rule);
+
 
     struct macro_args_and_body out = {
             .is_function_like = true,
@@ -278,7 +310,7 @@ static struct str_view concatenate(struct str_view arg1, struct str_view arg2) {
 
 static ssize_t get_arg_index(struct str_view token_name, struct macro_args_and_body macro_def) {
     for (size_t i = 0; i < macro_def.n_args; i++) {
-        if (sstr_views_equal(token_name, macro_def.args[i])) {
+        if (str_views_eq(token_name, macro_def.args[i])) {
             return (ssize_t)i;
         }
     }
@@ -287,7 +319,7 @@ static ssize_t get_arg_index(struct str_view token_name, struct macro_args_and_b
 
 static bool str_view_vec_contains(str_view_vec vec, struct str_view view) {
     for (size_t i = 0; i < vec.n_elements; i++) {
-        if (sstr_views_equal(vec.arr[i], view)) {
+        if (str_views_eq(vec.arr[i], view)) {
             return true;
         }
     }

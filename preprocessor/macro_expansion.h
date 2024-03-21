@@ -21,14 +21,6 @@ struct token_range {
     size_t n;
 };
 
-static bool sstr_views_equal(struct str_view t1, struct str_view t2) {
-    size_t i1, i2;
-    for (i1 = 0, i2 = 0; i1 < t1.n && i2 < t2.n; i1++, i2++) {
-        if (t1.first[i1] != t2.first[i2]) return false;
-    }
-    return i1 == t1.n && i2 == t2.n;
-}
-
 static size_t hash_sstr_view(struct str_view token_name, size_t capacity) {
     size_t chars_sum = 0;
     for (size_t i = 0; i < token_name.n; i++) {
@@ -40,7 +32,7 @@ static size_t hash_sstr_view(struct str_view token_name, size_t capacity) {
 typedef struct str_view str_view;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(str_view)
 typedef struct macro_args_and_body macro_args_and_body;
-DEFINE_MAP_TYPE_AND_FUNCTIONS(str_view, macro_args_and_body, hash_sstr_view, sstr_views_equal)
+DEFINE_MAP_TYPE_AND_FUNCTIONS(str_view, macro_args_and_body, hash_sstr_view, str_views_eq)
 
 typedef struct token_with_ignore_list {
     struct preprocessing_token token;

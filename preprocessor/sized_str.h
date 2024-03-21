@@ -10,5 +10,6 @@ struct str_view {
 };
 
 bool str_view_cstr_eq(struct str_view view, const unsigned char *cstr);
+bool str_views_eq(struct str_view t1, struct str_view t2);
 
 #endif //TEST_LINES_H
