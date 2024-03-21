@@ -323,7 +323,7 @@ static pp_token_vec eval_stringifies(struct macro_args_and_body macro_info, stru
     pp_token_vec out;
     pp_token_vec_init(&out, 0);
     for (size_t i = 0; i < macro_info.n_replacements;) {
-        if (i != macro_info.n_replacements - 1 && token_is_str(macro_info.replacements[i], "#") && macro_info.is_function_like) {
+        if (i != macro_info.n_replacements - 1 && token_is_str(macro_info.replacements[i], (const unsigned char*)"#") && macro_info.is_function_like) {
             ssize_t arg_index = get_arg_index(macro_info.replacements[i+1].name, macro_info);
             if (arg_index == -1) {
                 preprocessor_fatal_error(0, 0, 0, "can't stringify non-argument");
@@ -335,7 +335,7 @@ static pp_token_vec eval_stringifies(struct macro_args_and_body macro_info, stru
                             .after_whitespace = macro_info.replacements[i].after_whitespace
                     });
             i += 2;
-        } else if (i == macro_info.n_replacements - 1 && token_is_str(macro_info.replacements[i], "#") && macro_info.is_function_like) {
+        } else if (i == macro_info.n_replacements - 1 && token_is_str(macro_info.replacements[i], (const unsigned char*)"#") && macro_info.is_function_like) {
             preprocessor_fatal_error(0, 0, 0, "# operator can't appear at the end of a macro");
         }
         else {
@@ -362,7 +362,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
     str_view_vec new_arg_names;
     str_view_vec_init(&new_arg_names, macro_info.n_args + 1);
     str_view_vec_append_all_arr(&new_arg_names, macro_info.args, macro_info.n_args);
-    str_view_vec_append(&new_arg_names, (struct str_view) { .first = "__VA_ARGS__", .n = sizeof("__VA_ARGS__") - 1 });
+    str_view_vec_append(&new_arg_names, (struct str_view) { .first = (const unsigned char*)"__VA_ARGS__", .n = sizeof("__VA_ARGS__") - 1 });
     macro_info.args = new_arg_names.arr;
     macro_info.n_args = new_arg_names.n_elements;
 
@@ -377,7 +377,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
     bool ignore_stringify_left = false;
     pp_token_vec stringifies_expanded = eval_stringifies(macro_info, use_info);
     for (size_t i = 0; i < stringifies_expanded.n_elements;) {
-        if (i != stringifies_expanded.n_elements - 1 && token_is_str(stringifies_expanded.arr[i+1], "##")) {
+        if (i != stringifies_expanded.n_elements - 1 && token_is_str(stringifies_expanded.arr[i+1], (const unsigned char*)"##")) {
             if (i+1 == stringifies_expanded.n_elements - 1) {
                 preprocessor_fatal_error(0, 0, 0, "## can't appear at beginning or end of macro");
             }
@@ -394,7 +394,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
                 } else if (use_info.args[arg1_index].n_tokens == 0) {
                     token_with_ignore_list_vec_append(&replaced_tokens, (struct token_with_ignore_list) {
                             .token = {
-                                    .name = {.first = "", .n = 0},
+                                    .name = {.first = (const unsigned char*)"", .n = 0},
                                     .after_whitespace = stringifies_expanded.arr[i].after_whitespace,
                                     // type intentionally omitted
                             },
@@ -418,7 +418,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
             } else if (use_info.args[arg2_index].n_tokens == 0) {
                 token_with_ignore_list_vec_append(&replaced_tokens, (struct token_with_ignore_list) {
                         .token = {
-                                .name = { .first = "", .n = 0 },
+                                .name = { .first = (const unsigned char*)"", .n = 0 },
                                 .after_whitespace = stringifies_expanded.arr[i].after_whitespace,
                                 // type intentionally omitted
                         },
@@ -434,7 +434,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
             }
             ignore_stringify_left = true;
             i += 2;
-        } else if (i == 0 && token_is_str(stringifies_expanded.arr[i], "##")) {
+        } else if (i == 0 && token_is_str(stringifies_expanded.arr[i], (const unsigned char*)"##")) {
             preprocessor_fatal_error(0, 0, 0, "## can't appear at beginning or end of macro");
         } else if (ignore_stringify_left) {
             i++;
@@ -518,7 +518,7 @@ pp_token_vec replace_macros(pp_token_vec tokens, str_view_macro_args_and_body_ma
     token_with_ignore_list_vec tokens_with_ignore_list;
     token_with_ignore_list_vec_init(&tokens_with_ignore_list, tokens.n_elements);
     for (size_t i = 0; i < tokens.n_elements; i++) {
-        if (!token_is_str(tokens.arr[i], "\n")) {
+        if (!token_is_str(tokens.arr[i], (const unsigned char*)"\n")) {
             str_view_vec empty;
             str_view_vec_init(&empty, 0);
             token_with_ignore_list_vec_append(&tokens_with_ignore_list, (struct token_with_ignore_list) {
