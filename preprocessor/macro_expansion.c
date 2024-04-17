@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 static struct earley_rule get_replacement_list_rule(struct earley_rule control_line_rule) {
-    if (control_line_rule.lhs != &control_line) {
+    if (control_line_rule.lhs != &tr_control_line) {
         preprocessor_fatal_error(0, 0, 0, "get_replacement_list_rule called with non-control line");
     }
 
@@ -52,7 +52,7 @@ static bool replacement_lists_identical(struct preprocessing_token *list1, size_
 }
 
 void define_object_like_macro(struct earley_rule rule, str_view_macro_args_and_body_map *macros) {
-    if (rule.lhs != &control_line || rule.rhs.tag != CONTROL_LINE_DEFINE_OBJECT_LIKE) {
+    if (rule.lhs != &tr_control_line || rule.rhs.tag != CONTROL_LINE_DEFINE_OBJECT_LIKE) {
         preprocessor_fatal_error(0, 0, 0, "rule passed to define_object_like_macro is not an object-like macro");
     }
     struct preprocessing_token macro_name_token = get_macro_name_token(rule);
@@ -90,7 +90,7 @@ static void append_identifier_names(str_view_vec *vec, struct earley_rule identi
 }
 
 static str_view_vec get_macro_params(struct earley_rule control_line_rule) {
-    if (control_line_rule.lhs != &control_line || (control_line_rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_MIXED_ARGS && control_line_rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_ONLY_VARARGS && control_line_rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_NO_VARARGS)) {
+    if (control_line_rule.lhs != &tr_control_line || (control_line_rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_MIXED_ARGS && control_line_rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_ONLY_VARARGS && control_line_rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_NO_VARARGS)) {
         preprocessor_fatal_error(0, 0, 0, "rule passed to define_object_like_macro is not an object-like macro");
     }
 
@@ -133,7 +133,7 @@ static bool args_identical(struct str_view *args1, size_t n1, struct str_view *a
 }
 
 void define_function_like_macro(struct earley_rule rule, str_view_macro_args_and_body_map *macros) {
-    if (rule.lhs != &control_line || (rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_MIXED_ARGS && rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_ONLY_VARARGS && rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_NO_VARARGS)) {
+    if (rule.lhs != &tr_control_line || (rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_MIXED_ARGS && rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_ONLY_VARARGS && rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_NO_VARARGS)) {
         preprocessor_fatal_error(0, 0, 0, "rule passed to define_function_like_macro is not an function-like macro");
     }
     struct preprocessing_token macro_name_token = rule.completed_from.arr[0]->rhs.symbols[0].val.terminal.token;
@@ -290,22 +290,22 @@ static struct str_view stringify(struct given_macro_arg arg) {
         }
         for (size_t j = 0; j < arg.tokens[i].token.name.n; j++) {
             if ((arg.tokens[i].token.type == STRING_LITERAL || arg.tokens[i].token.type == CHARACTER_CONSTANT)
-            && (arg.tokens[i].token.name.first[j] == '\\' || arg.tokens[i].token.name.first[j] == '"')) {
+            && (arg.tokens[i].token.name.chars[j] == '\\' || arg.tokens[i].token.name.chars[j] == '"')) {
                 uchar_vec_append(&out, '\\');
             }
-            uchar_vec_append(&out, arg.tokens[i].token.name.first[j]);
+            uchar_vec_append(&out, arg.tokens[i].token.name.chars[j]);
         }
     }
     uchar_vec_append(&out, '"');
-    return (struct str_view) { .first = out.arr, .n = out.n_elements };
+    return (struct str_view) { .chars = out.arr, .n = out.n_elements };
 }
 
 static struct str_view concatenate(struct str_view arg1, struct str_view arg2) {
     uchar_vec out;
     uchar_vec_init(&out, arg1.n + arg2.n);
-    uchar_vec_append_all_arr(&out, arg1.first, arg1.n);
-    uchar_vec_append_all_arr(&out, arg2.first, arg2.n);
-    return (struct str_view) { .first = out.arr, .n = out.n_elements };
+    uchar_vec_append_all_arr(&out, arg1.chars, arg1.n);
+    uchar_vec_append_all_arr(&out, arg2.chars, arg2.n);
+    return (struct str_view) { .chars = out.arr, .n = out.n_elements };
 }
 
 static ssize_t get_arg_index(struct str_view token_name, struct macro_args_and_body macro_def) {
@@ -394,7 +394,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
     str_view_vec new_arg_names;
     str_view_vec_init(&new_arg_names, macro_info.n_args + 1);
     str_view_vec_append_all_arr(&new_arg_names, macro_info.args, macro_info.n_args);
-    str_view_vec_append(&new_arg_names, (struct str_view) { .first = (const unsigned char*)"__VA_ARGS__", .n = sizeof("__VA_ARGS__") - 1 });
+    str_view_vec_append(&new_arg_names, (struct str_view) { .chars = (const unsigned char*)"__VA_ARGS__", .n = sizeof("__VA_ARGS__") - 1 });
     macro_info.args = new_arg_names.arr;
     macro_info.n_args = new_arg_names.n_elements;
 
@@ -426,7 +426,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
                 } else if (use_info.args[arg1_index].n_tokens == 0) {
                     token_with_ignore_list_vec_append(&replaced_tokens, (struct token_with_ignore_list) {
                             .token = {
-                                    .name = {.first = (const unsigned char*)"", .n = 0},
+                                    .name = {.chars = (const unsigned char*)"", .n = 0},
                                     .after_whitespace = stringifies_expanded.arr[i].after_whitespace,
                                     // type intentionally omitted
                             },
@@ -450,7 +450,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
             } else if (use_info.args[arg2_index].n_tokens == 0) {
                 token_with_ignore_list_vec_append(&replaced_tokens, (struct token_with_ignore_list) {
                         .token = {
-                                .name = { .first = (const unsigned char*)"", .n = 0 },
+                                .name = { .chars = (const unsigned char*)"", .n = 0 },
                                 .after_whitespace = stringifies_expanded.arr[i].after_whitespace,
                                 // type intentionally omitted
                         },
@@ -497,7 +497,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
             struct str_view concat_result = concatenate(out.arr[out.n_elements - 1].token.name, replaced_tokens.arr[i].token.name);
             bool token_valid = is_valid_token(concat_result, EXCLUDE_HEADER_NAME);
             if (!token_valid && concat_result.n != 0) {
-                preprocessor_fatal_error(0, 0, 0, "concat result %.*s is not a valid token", (int)concat_result.n, concat_result.first);
+                preprocessor_fatal_error(0, 0, 0, "concat result %.*s is not a valid token", (int)concat_result.n, concat_result.chars);
             }
             out.arr[out.n_elements - 1].token.name = concat_result;
             if (token_valid) {
@@ -573,7 +573,7 @@ pp_token_vec replace_macros(pp_token_vec tokens, str_view_macro_args_and_body_ma
 
 void reconstruct_macro_use(struct macro_use_info info) {
     // Print the macro name
-    printf("Macro use: %.*s", (int)info.macro_name.n, (const char*)info.macro_name.first);
+    printf("Macro use: %.*s", (int)info.macro_name.n, (const char*)info.macro_name.chars);
 
     // If the macro is function-like and there are arguments, print them within parentheses
     if (info.is_function_like) {
@@ -584,7 +584,7 @@ void reconstruct_macro_use(struct macro_use_info info) {
                 if (info.args[i].tokens[j].token.after_whitespace && j != 0) {
                     printf(" ");
                 }
-                printf("%.*s", (int)info.args[i].tokens[j].token.name.n, (const char*)info.args[i].tokens[j].token.name.first);
+                printf("%.*s", (int)info.args[i].tokens[j].token.name.n, (const char*)info.args[i].tokens[j].token.name.chars);
             }
             if (i < info.n_args - 1) {
                 printf(", ");
@@ -603,14 +603,14 @@ void print_macros(str_view_macro_args_and_body_map *macros) {
         while (node != NULL) {
             printf("Macro: ");
             for (size_t j = 0; j < node->key.n; j++) {
-                printf("%c", node->key.first[j]);
+                printf("%c", node->key.chars[j]);
             }
 
             if (node->value.is_function_like) {
                 printf("(");
                 for (size_t arg_index = 0; arg_index < node->value.n_args; arg_index++) {
                     for (size_t k = 0; k < node->value.args[arg_index].n; k++) {
-                        printf("%c", node->value.args[arg_index].first[k]);
+                        printf("%c", node->value.args[arg_index].chars[k]);
                     }
                     if (arg_index < node->value.n_args - 1 || node->value.accepts_varargs) {
                         printf(", ");
@@ -627,7 +627,7 @@ void print_macros(str_view_macro_args_and_body_map *macros) {
                 const struct preprocessing_token token = node->value.replacements[j];
                 if (token.after_whitespace && j != 0) printf(" ");
                 for (size_t k = 0; k < token.name.n; k++) {
-                    printf("%c", token.name.first[k]);
+                    printf("%c", token.name.chars[k]);
                 }
             }
             printf("\n");

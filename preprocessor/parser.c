@@ -1,8 +1,9 @@
 #include "preprocessor/parser.h"
 #include "preprocessor/diagnostics.h"
+#include "preprocessor/macro_expansion.h"
+#include "preprocessor/conditional_inclusion.h"
 #include "data_structures/vector.h"
 #include "debug/color_print.h"
-#include "macro_expansion.h"
 
 
 static erule_p_vec get_earley_rules(const struct production_rule *rule, erule_p_vec *origin) {
@@ -164,7 +165,7 @@ static void print_symbol(struct symbol sym) {
                 if (strcmp("\n", (const char *)sym.val.terminal.matcher.str) == 0) {
                     print_with_color(TEXT_COLOR_GREEN, "[newline] ");
                 } else {
-                    print_with_color(TEXT_COLOR_GREEN, "'%s' ", sym.val.terminal.matcher.str);
+                    print_with_color(TEXT_COLOR_GREEN, "%s ", sym.val.terminal.matcher.str);
                 }
                 break;
         }
@@ -203,10 +204,10 @@ void print_chart(erule_p_vec *chart) {
 
 static void print_token(struct preprocessing_token token) {
     for (size_t j = 0; j < token.name.n; j++) {
-        if (token.name.first[j] == '\n') {
+        if (token.name.chars[j] == '\n') {
             printf("[newline]");
         } else {
-            printf("%c", token.name.first[j]);
+            printf("%c", token.name.chars[j]);
         }
     }
 }
@@ -225,7 +226,7 @@ erule_p_vec_p_vec make_charts(pp_token_vec tokens) {
     struct earley_rule *S_rule = MALLOC(sizeof(struct earley_rule));
 
     *S_rule = (struct earley_rule){
-        .lhs=&preprocessing_file, .rhs=preprocessing_file.alternatives[0], .dot=preprocessing_file.alternatives[0].symbols, .origin_chart=initial_chart, .completed_from=empty
+        .lhs=&tr_preprocessing_file, .rhs=tr_preprocessing_file.alternatives[0], .dot=tr_preprocessing_file.alternatives[0].symbols, .origin_chart=initial_chart, .completed_from=empty
     };
     erule_p_vec_append(initial_chart, S_rule);
 
@@ -259,10 +260,12 @@ erule_p_vec_p_vec make_charts(pp_token_vec tokens) {
     return out;
 }
 
+static void flatten_list_rules(struct earley_rule *root);
 static struct earley_rule *get_tree_root(erule_p_vec final_chart) {
     for (size_t i = 0; i < final_chart.n_elements; i++) {
         struct earley_rule *rule = final_chart.arr[i];
-        if (rule->lhs == &preprocessing_file && is_completed(*rule)) {
+        if (rule->lhs == &tr_preprocessing_file && is_completed(*rule)) {
+            flatten_list_rules(rule);
             return rule;
         }
     }
@@ -364,27 +367,48 @@ static void deal_with_macros(struct earley_rule root) {
     pp_token_vec_init(&text_section, 0);
     for (size_t i = 0; i < group_rule.completed_from.n_elements; i++) {
         struct earley_rule group_part_rule = *group_rule.completed_from.arr[i];
-        if (group_part_rule.rhs.tag == GROUP_PART_CONTROL) {
-            struct earley_rule control_line_rule = *group_part_rule.completed_from.arr[0];
-            if (control_line_rule.rhs.tag == CONTROL_LINE_DEFINE_OBJECT_LIKE) {
-                define_object_like_macro(control_line_rule, &macros);
-                print_with_color(TEXT_COLOR_LIGHT_RED, "Defined macro, all macros:\n");
-                print_macros(&macros);
-                printf("\n");
-            } else if (control_line_rule.rhs.tag == CONTROL_LINE_DEFINE_FUNCTION_LIKE_MIXED_ARGS || control_line_rule.rhs.tag == CONTROL_LINE_DEFINE_FUNCTION_LIKE_ONLY_VARARGS || control_line_rule.rhs.tag == CONTROL_LINE_DEFINE_FUNCTION_LIKE_NO_VARARGS) {
-                define_function_like_macro(control_line_rule, &macros);
-                print_with_color(TEXT_COLOR_LIGHT_RED, "Defined macro, all macros:\n");
-                print_macros(&macros);
-                printf("\n");
-            } else if (control_line_rule.rhs.tag == CONTROL_LINE_UNDEF) {
-                if (!str_view_macro_args_and_body_map_remove(&macros, control_line_rule.completed_from.arr[0]->rhs.symbols[0].val.terminal.token.name)) {
-                    preprocessor_fatal_error(0, 0, 0, "Can't undefine a macro that doesn't exist");
+        switch ((enum group_part_tag)group_part_rule.rhs.tag) {
+            case GROUP_PART_CONTROL: {
+                struct earley_rule control_line_rule = *group_part_rule.completed_from.arr[0];
+                switch((enum control_line_tag)control_line_rule.rhs.tag) {
+                    case CONTROL_LINE_DEFINE_OBJECT_LIKE: {
+                        define_object_like_macro(control_line_rule, &macros);
+                        print_with_color(TEXT_COLOR_LIGHT_RED, "Defined macro, all macros:\n");
+                        print_macros(&macros);
+                        printf("\n");
+                        break;
+                    }
+                    case CONTROL_LINE_DEFINE_FUNCTION_LIKE_MIXED_ARGS:
+                    case CONTROL_LINE_DEFINE_FUNCTION_LIKE_ONLY_VARARGS:
+                    case CONTROL_LINE_DEFINE_FUNCTION_LIKE_NO_VARARGS: {
+                        define_function_like_macro(control_line_rule, &macros);
+                        print_with_color(TEXT_COLOR_LIGHT_RED, "Defined macro, all macros:\n");
+                        print_macros(&macros);
+                        printf("\n");
+                        break;
+                    }
+                    case CONTROL_LINE_UNDEF: {
+                        if (!str_view_macro_args_and_body_map_remove(&macros,
+                                                                     control_line_rule.completed_from.arr[0]->rhs.symbols[0].val.terminal.token.name)) {
+                            preprocessor_fatal_error(0, 0, 0, "Can't undefine a macro that doesn't exist");
+                        }
+                        break;
+                    }
                 }
+                break;
             }
-        } else if (group_part_rule.rhs.tag == GROUP_PART_TEXT) {
-            struct earley_rule text_line_rule = *group_part_rule.completed_from.arr[0];
-            pp_token_vec text_line_tokens = get_text_line_tokens(text_line_rule);
-            pp_token_vec_append_all(&text_section, &text_line_tokens);
+            case GROUP_PART_TEXT: {
+                struct earley_rule text_line_rule = *group_part_rule.completed_from.arr[0];
+                pp_token_vec text_line_tokens = get_text_line_tokens(text_line_rule);
+                pp_token_vec_append_all(&text_section, &text_line_tokens);
+                break;
+            }
+            case GROUP_PART_IF: {
+                struct earley_rule if_section_rule = *group_part_rule.completed_from.arr[0];
+                struct earley_rule *included_group = eval_if_section(if_section_rule);
+                print_with_color(TEXT_COLOR_LIGHT_RED, "Tree of included if section:\n");
+                print_tree(included_group, 0);
+            }
         }
     }
     pp_token_vec replaced = replace_macros(text_section, macros);
@@ -403,7 +427,6 @@ void test_parser(pp_token_vec tokens) {
         printf("No tree to print; parsing failed.\n");
         return;
     }
-    flatten_list_rules(root);
     deal_with_macros(*root);
 //    print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");
 //    print_tree(root, 0);

@@ -100,6 +100,8 @@ struct preprocessing_token {
     bool after_whitespace;
 };
 
+bool in_src_char_set(unsigned char c);
+
 bool token_is_str(struct preprocessing_token token, const unsigned char *str);
 
 struct preprocessing_token_detector {

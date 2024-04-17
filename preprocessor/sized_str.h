@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 struct str_view {
-    const unsigned char *first;
+    const unsigned char *chars;
     size_t n;
 };
 

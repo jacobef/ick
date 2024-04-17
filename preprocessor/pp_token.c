@@ -2,7 +2,7 @@
 #include "pp_token.h"
 #include "preprocessor/diagnostics.h"
 
-static bool in_src_char_set(unsigned char c) {
+bool in_src_char_set(unsigned char c) {
     if (isdigit(c) || isalpha(c)) return true;
     switch (c) {
         case '!':case '"':case '#':case '%':case '&':case '\'':case '(':case ')':case '*':case '+':case ',':case '-':
@@ -447,7 +447,7 @@ static struct preprocessing_token_detector get_initial_detector(void) {
 bool is_valid_token(struct str_view token, enum exclude_from_detection exclude) {
     struct preprocessing_token_detector detector = get_initial_detector();
     for (size_t i = 0; i < token.n; i++) {
-        detector = detect_preprocessing_token(detector, token.first[i], exclude);
+        detector = detect_preprocessing_token(detector, token.chars[i], exclude);
     }
     return detector.status == MATCH;
 }
@@ -455,7 +455,7 @@ bool is_valid_token(struct str_view token, enum exclude_from_detection exclude) 
 enum pp_token_type get_token_type_from_str(struct str_view token, enum exclude_from_detection exclude) {
     struct preprocessing_token_detector detector = get_initial_detector();
     for (size_t i = 0; i < token.n; i++) {
-        detector = detect_preprocessing_token(detector, token.first[i], exclude);
+        detector = detect_preprocessing_token(detector, token.chars[i], exclude);
     }
     return get_token_type(detector);
 }
@@ -470,15 +470,15 @@ pp_token_vec get_pp_tokens(struct str_view input) {
 
     struct preprocessing_token token; // scary
     struct preprocessing_token token_at_most_recent_match;
-    for (const unsigned char *char_p = input.first; char_p != input.first + input.n; char_p++) {
+    for (const unsigned char *char_p = input.chars; char_p != input.chars + input.n; char_p++) {
         // The token can only be a header name if it's after #include, and it can only be a string literal if it's not
         // Otherwise, it's ambiguous; most tokens inside double quotes could be either
         token_detector = detect_preprocessing_token(token_detector, *char_p,
                                                     in_include_directive(tokens) ? EXCLUDE_STRING_LITERAL : EXCLUDE_HEADER_NAME);
         // If this might be the start of a new token, then initialize it
         if (token_detector.status != IMPOSSIBLE && (token_detector.was_first_char || token_detector.prev_status == IMPOSSIBLE)) {
-            token.name.first = char_p;
-            const bool after_actual_whitespace = char_p != input.first && isspace(*(char_p - 1));
+            token.name.chars = char_p;
+            const bool after_actual_whitespace = char_p != input.chars && isspace(*(char_p - 1));
             const bool after_comment = tokens.n_elements > 0 && tokens.arr[tokens.n_elements - 1].type == COMMENT;
             token.after_whitespace = after_actual_whitespace || after_comment;
         }
@@ -486,7 +486,7 @@ pp_token_vec get_pp_tokens(struct str_view input) {
         if (token_detector.status == MATCH) {
             match_exists = true;
             token_at_most_recent_match = token;
-            token_at_most_recent_match.name.n = (size_t)(char_p + 1 - token.name.first);
+            token_at_most_recent_match.name.n = (size_t)(char_p + 1 - token.name.chars);
             detector_at_most_recent_match = token_detector;
         // If the token isn't valid and can't be valid in the future:
         } else if (token_detector.status == IMPOSSIBLE) {
@@ -495,12 +495,11 @@ pp_token_vec get_pp_tokens(struct str_view input) {
                 token_at_most_recent_match.type = get_token_type(detector_at_most_recent_match);
                 pp_token_vec_append(&tokens, token_at_most_recent_match);
                 match_exists = false;
-                char_p = token_at_most_recent_match.name.first + token_at_most_recent_match.name.n - 1;
+                char_p = token_at_most_recent_match.name.chars + token_at_most_recent_match.name.n - 1;
             }
             token_detector = get_initial_detector();
         }
     }
-
     if (match_exists) {
         token_at_most_recent_match.type = get_token_type(detector_at_most_recent_match);
         pp_token_vec_append(&tokens, token_at_most_recent_match);
@@ -522,10 +521,10 @@ void print_tokens(pp_token_vec tokens) {
     for (size_t i = 0; i < tokens.n_elements; i++) {
         struct preprocessing_token token = tokens.arr[i];
         for (size_t j = 0; j < token.name.n; j++) {
-            if (token.name.first[j] == '\n') {
+            if (token.name.chars[j] == '\n') {
                 printf("[newline]");
             } else {
-                printf("%c", token.name.first[j]);
+                printf("%c", token.name.chars[j]);
             }
         }
         printf (" (");
@@ -545,7 +544,7 @@ void print_tokens(pp_token_vec tokens) {
     for (size_t i = 0; i < tokens.n_elements; i++) {
         struct preprocessing_token token = tokens.arr[i];
         for (size_t j = 0; j < token.name.n; j++) {
-            printf("%c", token.name.first[j]);
+            printf("%c", token.name.chars[j]);
         }
         printf(" ");
     }

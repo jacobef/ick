@@ -11,8 +11,14 @@ set(SOURCE_FILES
         debug/color_print.h
         preprocessor/macro_expansion.c
         preprocessor/macro_expansion.h
-        preprocessor/rule_definitions.c
+        preprocessor/token_rule_definitions.c
         preprocessor/sized_str.c
+        preprocessor/conditional_inclusion.c
+        preprocessor/conditional_inclusion.h
+        preprocessor/char_parser.c
+        preprocessor/char_parser.h
+        preprocessor/char_rule_definitions.c
+        mappings/typedefs.h
 )
 
 project(ick C)
@@ -20,7 +26,7 @@ project(ick C)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_STANDARD 99)
 string(APPEND CMAKE_EXE_LINKER_FLAGS "-fsanitize=address,undefined")
-add_compile_options(-Weverything -Wno-padded -Wno-declaration-after-statement -Wno-missing-noreturn -Wno-documentation-unknown-command -Wno-unsafe-buffer-usage -Wno-used-but-marked-unused -O0 -g)
+add_compile_options(-Weverything -Wno-padded -Wno-declaration-after-statement -Wno-missing-noreturn -Wno-documentation-unknown-command -Wno-unsafe-buffer-usage -Wno-used-but-marked-unused -Wno-switch-default -O0 -g)
 #add_compile_definitions(DEBUG)
 add_executable(ick ${SOURCE_FILES} main.c)
 include_directories(.)

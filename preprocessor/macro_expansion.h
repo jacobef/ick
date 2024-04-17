@@ -16,15 +16,10 @@ struct macro_args_and_body {
     size_t n_replacements;
 };
 
-struct token_range {
-    size_t first;
-    size_t n;
-};
-
 static size_t hash_sstr_view(struct str_view token_name, size_t capacity) {
     size_t chars_sum = 0;
     for (size_t i = 0; i < token_name.n; i++) {
-        chars_sum += (size_t)(token_name.first[i]);
+        chars_sum += (size_t)(token_name.chars[i]);
     }
     return chars_sum % capacity;
 }
@@ -41,11 +36,6 @@ typedef struct token_with_ignore_list {
 DEFINE_VEC_TYPE_AND_FUNCTIONS(token_with_ignore_list)
 
 struct given_macro_arg {
-    struct token_with_ignore_list *tokens;
-    size_t n_tokens;
-};
-
-struct given_varargs {
     struct token_with_ignore_list *tokens;
     size_t n_tokens;
 };

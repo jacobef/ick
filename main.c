@@ -8,6 +8,7 @@
 #include "preprocessor/escaped_newlines.h"
 #include "preprocessor/pp_token.h"
 #include "preprocessor/parser.h"
+#include "preprocessor/char_parser.h"
 #include "debug/color_print.h"
 
 char *ick_progname;
@@ -55,21 +56,22 @@ int main(int argc, char *argv[]) {
     input_chars[input_len] = '\n'; // too much of a pain without this
 
     struct str_view trigraphs_replaced = replace_trigraphs(
-            (struct str_view){ .first = input_chars, .n = input_len + 1 }
+            (struct str_view){ .chars = input_chars, .n = input_len + 1 }
     );
     struct str_view logical_lines = rm_escaped_newlines(trigraphs_replaced);
-    fwrite(logical_lines.first, sizeof(char), logical_lines.n, output_file);
+    fwrite(logical_lines.chars, sizeof(char), logical_lines.n, output_file);
 
     fclose(output_file);
 
     pp_token_vec tokens = get_pp_tokens(logical_lines);
 //    print_tokens(tokens);
-
+    
     test_parser(tokens);
+
 
     pp_token_vec_free_internals(&tokens);
     FREE(input_chars);
-    FREE((void*)trigraphs_replaced.first);
-    FREE((void*)logical_lines.first);
+    FREE(trigraphs_replaced.chars);
+    FREE(logical_lines.chars);
     FREE(ick_progname);
 }

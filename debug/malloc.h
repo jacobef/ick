@@ -13,13 +13,19 @@ void debug_free(void *ptr, const char *file, const char *func, int line);
 
 #define MALLOC(size) debug_malloc(size, __FILE__, __func__, __LINE__)
 #define REALLOC(ptr, size) debug_realloc(ptr, size, __FILE__, __func__, __LINE__)
-#define FREE(ptr) debug_free(ptr, __FILE__, __func__, __LINE__)
+#define FREE(ptr) _Pragma("clang diagnostic push") \
+_Pragma("clang diagnostic ignored \"-Wcast-qual\"") \
+debug_free((void *)(ptr), __FILE__, __func__, __LINE__); \
+_Pragma("clang diagnostic pop")
 
 #else
 
 #define MALLOC(size) xmalloc(size)
 #define REALLOC(ptr, size) xrealloc(ptr, size)
-#define FREE(ptr) free(ptr)
+#define FREE(ptr) _Pragma("clang diagnostic push") \
+_Pragma("clang diagnostic ignored \"-Wcast-qual\"") \
+free((void*)(ptr)); \
+_Pragma("clang diagnostic pop")
 
 #endif
 

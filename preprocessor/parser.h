@@ -62,112 +62,108 @@ void print_chart(erule_p_vec *chart);
 void print_tree(struct earley_rule *root, size_t indent);
 void test_parser(pp_token_vec tokens);
 
-// Forward Declarations
-extern const struct production_rule preprocessing_file;
-extern const struct production_rule group_opt;
-extern const struct production_rule group;
-extern const struct production_rule group_part;
-extern const struct production_rule if_section;
-extern const struct production_rule if_group;
-extern const struct production_rule elif_groups;
-extern const struct production_rule elif_groups_opt;
-extern const struct production_rule elif_group;
-extern const struct production_rule else_group;
-extern const struct production_rule else_group_opt;
-extern const struct production_rule endif_line;
-extern const struct production_rule control_line;
-extern const struct production_rule non_hashtag;
-extern const struct production_rule tokens_not_starting_with_hashtag;
-extern const struct production_rule tokens_not_starting_with_hashtag_opt;
-extern const struct production_rule text_line;
-extern const struct production_rule not_directive_name;
-extern const struct production_rule tokens_not_starting_with_directive_name;
-extern const struct production_rule non_directive;
-extern const struct production_rule lparen;
-extern const struct production_rule replacement_list;
-extern const struct production_rule pp_tokens;
-extern const struct production_rule pp_tokens_opt;
-extern const struct production_rule identifier_list;
-extern const struct production_rule identifier_list_opt;
-extern const struct production_rule identifier;
-extern const struct production_rule identifier_opt;
-extern const struct production_rule string_literal;
 
-extern const struct production_rule constant;
-extern const struct production_rule integer_constant;
-extern const struct production_rule character_constant;
-extern const struct production_rule floating_constant;
-extern const struct production_rule enumeration_constant;
-extern const struct production_rule constant_expression;
-extern const struct production_rule conditional_expression;
-extern const struct production_rule logical_or_expression;
-extern const struct production_rule logical_and_expression;
-extern const struct production_rule inclusive_or_expression;
-extern const struct production_rule exclusive_or_expression;
-extern const struct production_rule and_expression;
-extern const struct production_rule equality_expression;
-extern const struct production_rule relational_expression;
-extern const struct production_rule shift_expression;
-extern const struct production_rule additive_expression;
-extern const struct production_rule multiplicative_expression;
-extern const struct production_rule cast_expression;
-extern const struct production_rule unary_expression;
-extern const struct production_rule unary_operator;
-extern const struct production_rule postfix_expression;
-extern const struct production_rule primary_expression;
-extern const struct production_rule assignment_expression;
-extern const struct production_rule assignment_expression_opt;
-extern const struct production_rule assignment_operator;
-extern const struct production_rule expression;
+extern const struct production_rule tr_preprocessing_file;
+extern const struct production_rule tr_group_opt;
+extern const struct production_rule tr_group;
+extern const struct production_rule tr_group_part;
+extern const struct production_rule tr_if_section;
+extern const struct production_rule tr_if_group;
+extern const struct production_rule tr_elif_groups;
+extern const struct production_rule tr_elif_groups_opt;
+extern const struct production_rule tr_elif_group;
+extern const struct production_rule tr_else_group;
+extern const struct production_rule tr_else_group_opt;
+extern const struct production_rule tr_endif_line;
+extern const struct production_rule tr_control_line;
+extern const struct production_rule tr_non_hashtag;
+extern const struct production_rule tr_tokens_not_starting_with_hashtag;
+extern const struct production_rule tr_tokens_not_starting_with_hashtag_opt;
+extern const struct production_rule tr_text_line;
+extern const struct production_rule tr_not_directive_name;
+extern const struct production_rule tr_tokens_not_starting_with_directive_name;
+extern const struct production_rule tr_non_directive;
+extern const struct production_rule tr_lparen;
+extern const struct production_rule tr_replacement_list;
+extern const struct production_rule tr_pp_tokens;
+extern const struct production_rule tr_pp_tokens_opt;
+extern const struct production_rule tr_identifier_list;
+extern const struct production_rule tr_identifier_list_opt;
+extern const struct production_rule tr_identifier;
+extern const struct production_rule tr_identifier_opt;
+extern const struct production_rule tr_string_literal;
 
-extern const struct production_rule initializer_list;
-extern const struct production_rule argument_expression_list;
-extern const struct production_rule argument_expression_list_opt;
-extern const struct production_rule designation;
-extern const struct production_rule designation_opt;
-extern const struct production_rule designator_list;
-extern const struct production_rule designator;
-extern const struct production_rule initializer;
-extern const struct production_rule abstract_declarator;
-extern const struct production_rule abstract_declarator_opt;
-extern const struct production_rule direct_abstract_declarator;
-extern const struct production_rule direct_abstract_declarator_opt;
-extern const struct production_rule parameter_type_list;
-extern const struct production_rule parameter_type_list_opt;
-extern const struct production_rule parameter_list;
-extern const struct production_rule parameter_declaration;
-extern const struct production_rule specifier_qualifier_list;
-extern const struct production_rule specifier_qualifier_list_opt;
-extern const struct production_rule declaration_specifiers;
-extern const struct production_rule declaration_specifiers_opt;
-extern const struct production_rule storage_class_specifier;
-extern const struct production_rule function_specifier;
-extern const struct production_rule storage_class_specifier;
-extern const struct production_rule type_name;
-extern const struct production_rule type_specifier;
-extern const struct production_rule struct_or_union_specifier;
-extern const struct production_rule struct_or_union;
-extern const struct production_rule struct_declaration_list;
-extern const struct production_rule struct_declaration;
-extern const struct production_rule struct_declarator_list;
-extern const struct production_rule struct_declarator;
-extern const struct production_rule declarator;
-extern const struct production_rule declarator_opt;
-extern const struct production_rule direct_declarator;
-extern const struct production_rule enum_specifier;
-extern const struct production_rule enumerator_list;
-extern const struct production_rule enumerator;
-extern const struct production_rule type_qualifier;
-extern const struct production_rule type_qualifier_list;
-extern const struct production_rule type_qualifier_list_opt;
-extern const struct production_rule typedef_name;
-extern const struct production_rule pointer;
-extern const struct production_rule pointer_opt;
+extern const struct production_rule tr_constant;
+extern const struct production_rule tr_integer_constant;
+extern const struct production_rule tr_character_constant;
+extern const struct production_rule tr_floating_constant;
+extern const struct production_rule tr_enumeration_constant;
+extern const struct production_rule tr_constant_expression;
+extern const struct production_rule tr_conditional_expression;
+extern const struct production_rule tr_logical_or_expression;
+extern const struct production_rule tr_logical_and_expression;
+extern const struct production_rule tr_inclusive_or_expression;
+extern const struct production_rule tr_exclusive_or_expression;
+extern const struct production_rule tr_and_expression;
+extern const struct production_rule tr_equality_expression;
+extern const struct production_rule tr_relational_expression;
+extern const struct production_rule tr_shift_expression;
+extern const struct production_rule tr_additive_expression;
+extern const struct production_rule tr_multiplicative_expression;
+extern const struct production_rule tr_cast_expression;
+extern const struct production_rule tr_unary_expression;
+extern const struct production_rule tr_unary_operator;
+extern const struct production_rule tr_postfix_expression;
+extern const struct production_rule tr_primary_expression;
+extern const struct production_rule tr_assignment_expression;
+extern const struct production_rule tr_assignment_expression_opt;
+extern const struct production_rule tr_assignment_operator;
+extern const struct production_rule tr_expression;
 
+extern const struct production_rule tr_initializer_list;
+extern const struct production_rule tr_argument_expression_list;
+extern const struct production_rule tr_argument_expression_list_opt;
+extern const struct production_rule tr_designation;
+extern const struct production_rule tr_designation_opt;
+extern const struct production_rule tr_designator_list;
+extern const struct production_rule tr_designator;
+extern const struct production_rule tr_initializer;
+extern const struct production_rule tr_abstract_declarator;
+extern const struct production_rule tr_abstract_declarator_opt;
+extern const struct production_rule tr_direct_abstract_declarator;
+extern const struct production_rule tr_direct_abstract_declarator_opt;
+extern const struct production_rule tr_parameter_type_list;
+extern const struct production_rule tr_parameter_type_list_opt;
+extern const struct production_rule tr_parameter_list;
+extern const struct production_rule tr_parameter_declaration;
+extern const struct production_rule tr_specifier_qualifier_list;
+extern const struct production_rule tr_specifier_qualifier_list_opt;
+extern const struct production_rule tr_declaration_specifiers;
+extern const struct production_rule tr_declaration_specifiers_opt;
+extern const struct production_rule tr_storage_class_specifier;
+extern const struct production_rule tr_function_specifier;
+extern const struct production_rule tr_type_name;
+extern const struct production_rule tr_type_specifier;
+extern const struct production_rule tr_struct_or_union_specifier;
+extern const struct production_rule tr_struct_or_union;
+extern const struct production_rule tr_struct_declaration_list;
+extern const struct production_rule tr_struct_declaration;
+extern const struct production_rule tr_struct_declarator_list;
+extern const struct production_rule tr_struct_declarator;
+extern const struct production_rule tr_declarator;
+extern const struct production_rule tr_declarator_opt;
+extern const struct production_rule tr_direct_declarator;
+extern const struct production_rule tr_enum_specifier;
+extern const struct production_rule tr_enumerator_list;
+extern const struct production_rule tr_enumerator;
+extern const struct production_rule tr_type_qualifier;
+extern const struct production_rule tr_type_qualifier_list;
+extern const struct production_rule tr_type_qualifier_list_opt;
+extern const struct production_rule tr_typedef_name;
+extern const struct production_rule tr_pointer;
+extern const struct production_rule tr_pointer_opt;
 
-extern const struct production_rule rule_preprocessing_token;
-
-#define NO_TAG -1
+extern const struct production_rule tr_preprocessing_token;
 
 enum opt_tag { OPT_ONE, OPT_NONE };
 
@@ -294,7 +290,7 @@ enum postfix_expr_tag {
     POSTFIX_EXPR_ARROW,
     POSTFIX_EXPR_INC,
     POSTFIX_EXPR_DEC,
-    POSTFIX_EXPR_TYPE_NAME
+    POSTFIX_EXPR_COMPOUND_LITERAL
 };
 
 enum primary_expr_tag {
@@ -446,7 +442,5 @@ enum control_line_tag {
     CONTROL_LINE_PRAGMA,
     CONTROL_LINE_EMPTY
 };
-
-bool match_integer_constant_wrapper(const char *str);
 
 #endif //ICK_PARSER_H
