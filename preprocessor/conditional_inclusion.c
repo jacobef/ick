@@ -3,9 +3,11 @@
 
 #include "conditional_inclusion.h"
 #include "preprocessor/diagnostics.h"
-#include "preprocessor/char_parser.h"
 #include "debug/color_print.h"
 #include "mappings/typedefs.h"
+
+typedef unsigned char uchar;
+DEFINE_VEC_TYPE_AND_FUNCTIONS(uchar)
 
 static inline struct maybe_signed_intmax msi_s(target_intmax_t num) {
     return (struct maybe_signed_intmax) { .is_signed = true, .val.signd = num };
@@ -16,6 +18,7 @@ static inline struct maybe_signed_intmax msi_u(target_uintmax_t num) {
 }
 
 #define MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(msi1, msi2, op) \
+do {                                                                \
 if (!(msi1).is_signed && !(msi2).is_signed) {                       \
     return msi_u((msi1).val.unsignd op (msi2).val.unsignd);         \
 } else if ((msi1).is_signed && !(msi2).is_signed) {                 \
@@ -24,9 +27,11 @@ if (!(msi1).is_signed && !(msi2).is_signed) {                       \
     return msi_u((msi1).val.unsignd op (msi2).val.signd);           \
 } else {                                                            \
     return msi_s((msi1).val.signd op (msi2).val.signd);             \
-}
+}                                                                   \
+} while (0)
 
 #define MSI_BINARY_OP_RETURN_SIGNED_RESULT(msi1, msi2, op)  \
+do {                                                        \
 if (!(msi1).is_signed && !(msi2).is_signed) {               \
     return msi_s((msi1).val.unsignd op (msi2).val.unsignd); \
 } else if ((msi1).is_signed && !(msi2).is_signed) {         \
@@ -35,88 +40,8 @@ if (!(msi1).is_signed && !(msi2).is_signed) {               \
     return msi_s((msi1).val.unsignd op (msi2).val.signd);   \
 } else {                                                    \
     return msi_s((msi1).val.signd op (msi2).val.signd);     \
-}
-
-
-#define EVAL_1_ALT_BINARY_OP_USUAL_CONVERSIONS(name, fallthrough_func, op)                                                            \
-static struct maybe_signed_intmax name(struct earley_rule rule) {                                                   \
-    if (rule.rhs.tag == 0) {                                                                                        \
-        return fallthrough_func(*rule.completed_from.arr[0]);                                                       \
-    } else if (rule.rhs.tag == 1) {                                                                                 \
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op); \
-    } else {                                                                                                        \
-        preprocessor_fatal_error(0, 0, 0, "simple binary op tag is not 0 or 1");                                    \
-    }                                                                                                               \
-}
-
-#define EVAL_1_ALT_BINARY_OP_SIGNED_RESULT(name, fallthrough_func, op)                                              \
-static struct maybe_signed_intmax name(struct earley_rule rule) {                                                   \
-    if (rule.rhs.tag == 0) {                                                                                        \
-        return fallthrough_func(*rule.completed_from.arr[0]);                                                       \
-    } else if (rule.rhs.tag == 1) {                                                                                 \
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op); \
-    } else {                                                                                                        \
-        preprocessor_fatal_error(0, 0, 0, "simple binary op tag is not 0 or 1");                                    \
-    }                                                                                                               \
-}
-
-#define EVAL_2_ALT_BINARY_OP_USUAL_CONVERSIONS(name, fallthrough_func, op1, op2)                                                       \
-static struct maybe_signed_intmax name(struct earley_rule rule) {                                                    \
-    if (rule.rhs.tag == 0) {                                                                                         \
-        return fallthrough_func(*rule.completed_from.arr[0]);                                                        \
-    } else if (rule.rhs.tag == 1) {                                                                                  \
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op1); \
-    } else if (rule.rhs.tag == 2) {                                                                                  \
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op2); \
-    } else {                                                                                                         \
-        preprocessor_fatal_error(0, 0, 0, "2 alt binary op tag is not 0, 1, or 2");                                  \
-    }                                                                                                                \
-}
-
-#define EVAL_2_ALT_BINARY_OP_SIGNED_RESULT(name, fallthrough_func, op1, op2)                                         \
-static struct maybe_signed_intmax name(struct earley_rule rule) {                                                    \
-    if (rule.rhs.tag == 0) {                                                                                         \
-        return fallthrough_func(*rule.completed_from.arr[0]);                                                        \
-    } else if (rule.rhs.tag == 1) {                                                                                  \
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op1); \
-    } else if (rule.rhs.tag == 2) {                                                                                  \
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op2); \
-    } else {                                                                                                         \
-        preprocessor_fatal_error(0, 0, 0, "2 alt binary op tag is not 0, 1, or 2");                                  \
-    }                                                                                                                \
-}
-
-#define EVAL_3_ALT_BINARY_OP_USUAL_CONVERSIONS(name, fallthrough_func, op1, op2, op3)                                                  \
-static struct maybe_signed_intmax name(struct earley_rule rule) {                                                    \
-    if (rule.rhs.tag == 0) {                                                                                         \
-        return fallthrough_func(*rule.completed_from.arr[0]);                                                        \
-    } else if (rule.rhs.tag == 1) {                                                                                  \
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op1); \
-    } else if (rule.rhs.tag == 2) {                                                                                  \
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op2); \
-    } else if (rule.rhs.tag == 3) {                                                                                  \
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op3); \
-    } else {                                                                                                         \
-        preprocessor_fatal_error(0, 0, 0, "3 alt binary op tag is not 0, 1, 2, or 3");                               \
-    }                                                                                                                \
-}
-
-#define EVAL_4_ALT_BINARY_OP_SIGNED_RESULT(name, fallthrough_func, op1, op2, op3, op4)                                             \
-static struct maybe_signed_intmax name(struct earley_rule rule) {                                                    \
-    if (rule.rhs.tag == 0) {                                                                                         \
-        return fallthrough_func(*rule.completed_from.arr[0]);                                                        \
-    } else if (rule.rhs.tag == 1) {                                                                                  \
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op1); \
-    } else if (rule.rhs.tag == 2) {                                                                                  \
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op2); \
-    } else if (rule.rhs.tag == 3) {                                                                                  \
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op3); \
-    } else if (rule.rhs.tag == 4) {                                                                                  \
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(name(*rule.completed_from.arr[0]), fallthrough_func(*rule.completed_from.arr[1]), op4); \
-    } else {                                                                                                         \
-        preprocessor_fatal_error(0, 0, 0, "4 alt binary op tag is not 0, 1, 2, 3, or 4");                            \
-    }                                                                                                                \
-}
+}                                                           \
+} while (0)
 
 
 static unsigned char get_ascii_value(unsigned char c) {
@@ -175,18 +100,18 @@ static unsigned int eval_escape_sequence(struct str_view esc_seq, bool is_wide) 
         } else if (code_point <= 0x7FF) {
             unsigned char low_byte = 0x80 | extract_bits(code_point, 0, 6);
             unsigned char high_byte = 0xC0 | extract_bits(code_point, 6, 5);
-            return (unsigned int)(low_byte | (high_byte << 8));
+            return (unsigned int)(low_byte | ((unsigned int)high_byte << 8));
         } else if (code_point <= 0xFFFF) {
             unsigned char low_byte = 0x80 | extract_bits(code_point, 0, 6);
             unsigned char mid_byte = 0x80 | extract_bits(code_point, 6, 6);
             unsigned char high_byte = 0xE0 | extract_bits(code_point, 12, 4);
-            return (unsigned int)(low_byte | (mid_byte << 8) | (high_byte << 16));
+            return (unsigned int)(low_byte | ((unsigned int)mid_byte << 8) | ((unsigned int)high_byte << 16));
         } else {
             unsigned char low_byte = 0x80 | extract_bits(code_point, 0, 6);
             unsigned char mid_low_byte = 0x80 | extract_bits(code_point, 6, 6);
             unsigned char mid_high_byte = 0x80 | extract_bits(code_point, 12, 6);
             unsigned char high_byte = 0xF0 | extract_bits(code_point, 18, 3);
-            return (unsigned int)(low_byte | (mid_low_byte << 8) | (mid_high_byte << 16) | (high_byte << 24));
+            return (unsigned int)(low_byte | ((unsigned int)mid_low_byte << 8) | ((unsigned int)mid_high_byte << 16) | ((unsigned int)high_byte << 24));
         }
     } else if (esc_seq.chars[1] == '\'' || esc_seq.chars[1] == '\"' || esc_seq.chars[1] == '?' || esc_seq.chars[1] == '\\') {
         return get_ascii_value(esc_seq.chars[1]);
@@ -362,22 +287,27 @@ static struct parsed_int_constant parse_int_constant(struct str_view int_constan
     return (struct parsed_int_constant) { .digits = digits, .type = type, .is_signed = is_signed };
 }
 
+static target_uintmax_t impow(target_uintmax_t base, target_uintmax_t exp) {
+    target_uintmax_t out = 1;
+    for (target_uintmax_t i = 0; i < exp; i++) {
+        out *= base;
+    }
+    return out;
+}
+
 static struct maybe_signed_intmax eval_int_constant(struct earley_rule rule) {
     struct str_view rule_val = rule.rhs.symbols[0].val.terminal.token.name;
     struct parsed_int_constant parse = parse_int_constant(rule_val);
-    struct maybe_signed_intmax out = { .is_signed = parse.is_signed };
-    if (parse.is_signed) {
-        out.val.signd = 0;
-        for (size_t i = 0; i < parse.digits.n; i++) {
-            out.val.signd += get_hex_digit_value(parse.digits.chars[i]) << ((parse.digits.n - 1 - i) * 8);
-        }
-    } else {
-        out.val.unsignd = 0;
-        for (size_t i = 0; i < parse.digits.n; i++) {
-            out.val.unsignd += (target_uintmax_t)(get_hex_digit_value(parse.digits.chars[i]) << ((parse.digits.n - 1 - i) * 8));
-        }
+    target_uintmax_t result = 0;
+    for (size_t i = 0; i < parse.digits.n; i++) {
+        result += (target_uintmax_t)get_hex_digit_value(parse.digits.chars[i]) * impow(10, parse.digits.n - i - 1);
     }
-    return out;
+    print_with_color(TEXT_COLOR_LIGHT_RED, "int constant evalutes to %llu\n", result);
+    if (!parse.is_signed || result > impow(2, sizeof(target_intmax_t)*8 - 1) - 1) {
+        return (struct maybe_signed_intmax) { .is_signed = true, .val.unsignd = result };
+    } else {
+        return (struct maybe_signed_intmax) { .is_signed = false, .val.signd = (target_intmax_t)result };
+    }
 }
 
 static struct maybe_signed_intmax eval_constant(struct earley_rule rule) {
@@ -452,7 +382,7 @@ static struct maybe_signed_intmax eval_unary_expr(struct earley_rule rule) {
             preprocessor_fatal_error(0, 0, 0, "++ and -- aren't allowed in constant expressions");
         case UNARY_EXPR_UNARY_OP: {
             struct maybe_signed_intmax expr_val = eval_cast_expr(*rule.completed_from.arr[1]);
-            switch (rule.completed_from.arr[0]->rhs.tag) {
+            switch ((enum unary_operator_tag)rule.completed_from.arr[0]->rhs.tag) {
                 case UNARY_OPERATOR_PLUS:
                     if (expr_val.is_signed) return msi_s(+expr_val.val.signd);
                     else return msi_u(+expr_val.val.unsignd);
@@ -490,16 +420,121 @@ static struct maybe_signed_intmax eval_cast_expr(struct earley_rule rule) {
 #pragma clang diagnostic ignored "-Wsign-compare"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wsign-conversion"
-EVAL_3_ALT_BINARY_OP_USUAL_CONVERSIONS(eval_mult_expr, eval_cast_expr, *, /, %)
-EVAL_2_ALT_BINARY_OP_USUAL_CONVERSIONS(eval_add_expr, eval_mult_expr, +, -)
-EVAL_2_ALT_BINARY_OP_USUAL_CONVERSIONS(eval_shift_expr, eval_add_expr, <<, >>)
-EVAL_4_ALT_BINARY_OP_SIGNED_RESULT(eval_rel_expr, eval_shift_expr, <, >, <=, >=)
-EVAL_2_ALT_BINARY_OP_SIGNED_RESULT(eval_eq_expr, eval_rel_expr, ==, !=)
-EVAL_1_ALT_BINARY_OP_USUAL_CONVERSIONS(eval_and_expr, eval_eq_expr, &)
-EVAL_1_ALT_BINARY_OP_USUAL_CONVERSIONS(eval_eor_expr, eval_and_expr, ^)
-EVAL_1_ALT_BINARY_OP_USUAL_CONVERSIONS(eval_ior_expr, eval_eor_expr, |)
-EVAL_1_ALT_BINARY_OP_SIGNED_RESULT(eval_land_expr, eval_ior_expr, &&)
-EVAL_1_ALT_BINARY_OP_USUAL_CONVERSIONS(eval_lor_expr, eval_land_expr, ||)
+static struct maybe_signed_intmax eval_mult_expr(struct earley_rule rule) {
+    if (rule.rhs.tag == MULTIPLICATIVE_EXPR_CAST) {
+        return eval_cast_expr(*rule.completed_from.arr[0]);
+    } else if (rule.rhs.tag == MULTIPLICATIVE_EXPR_MULT) {
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_mult_expr(*rule.completed_from.arr[0]), eval_cast_expr(*rule.completed_from.arr[1]), *);
+    } else if (rule.rhs.tag == MULTIPLICATIVE_EXPR_DIV) {
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_mult_expr(*rule.completed_from.arr[0]), eval_cast_expr(*rule.completed_from.arr[1]), /);
+    } else if (rule.rhs.tag == MULTIPLICATIVE_EXPR_MOD) {
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_mult_expr(*rule.completed_from.arr[0]), eval_cast_expr(*rule.completed_from.arr[1]), %);
+    } else {
+        preprocessor_fatal_error(0, 0, 0, "Multiplicative expression tag is not recognized");
+    }
+}
+
+static struct maybe_signed_intmax eval_add_expr(struct earley_rule rule) {
+    if (rule.rhs.tag == ADDITIVE_EXPR_MULT) {
+        return eval_mult_expr(*rule.completed_from.arr[0]);
+    } else if (rule.rhs.tag == ADDITIVE_EXPR_PLUS) {
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_add_expr(*rule.completed_from.arr[0]), eval_mult_expr(*rule.completed_from.arr[1]), +);
+    } else if (rule.rhs.tag == ADDITIVE_EXPR_MINUS) {
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_add_expr(*rule.completed_from.arr[0]), eval_mult_expr(*rule.completed_from.arr[1]), -);
+    } else {
+        preprocessor_fatal_error(0, 0, 0, "Additive expression tag is not recognized");
+    }
+}
+
+static struct maybe_signed_intmax eval_shift_expr(struct earley_rule rule) {
+    if (rule.rhs.tag == SHIFT_EXPR_ADDITIVE) {
+        return eval_add_expr(*rule.completed_from.arr[0]);
+    } else if (rule.rhs.tag == SHIFT_EXPR_LEFT) {
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_shift_expr(*rule.completed_from.arr[0]), eval_add_expr(*rule.completed_from.arr[1]), <<);
+    } else if (rule.rhs.tag == SHIFT_EXPR_RIGHT) {
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_shift_expr(*rule.completed_from.arr[0]), eval_add_expr(*rule.completed_from.arr[1]), >>);
+    } else {
+        preprocessor_fatal_error(0, 0, 0, "Shift expression tag is not recognized");
+    }
+}
+
+static struct maybe_signed_intmax eval_rel_expr(struct earley_rule rule) {
+    if (rule.rhs.tag == RELATIONAL_EXPR_SHIFT) {
+        return eval_shift_expr(*rule.completed_from.arr[0]);
+    } else if (rule.rhs.tag == RELATIONAL_EXPR_LESS) {
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_rel_expr(*rule.completed_from.arr[0]), eval_shift_expr(*rule.completed_from.arr[1]), <);
+    } else if (rule.rhs.tag == RELATIONAL_EXPR_GREATER) {
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_rel_expr(*rule.completed_from.arr[0]), eval_shift_expr(*rule.completed_from.arr[1]), >);
+    } else if (rule.rhs.tag == RELATIONAL_EXPR_LEQ) {
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_rel_expr(*rule.completed_from.arr[0]), eval_shift_expr(*rule.completed_from.arr[1]), <=);
+    } else if (rule.rhs.tag == RELATIONAL_EXPR_GEQ) {
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_rel_expr(*rule.completed_from.arr[0]), eval_shift_expr(*rule.completed_from.arr[1]), >=);
+    } else {
+        preprocessor_fatal_error(0, 0, 0, "Relational expression tag is not recognized");
+    }
+}
+
+static struct maybe_signed_intmax eval_eq_expr(struct earley_rule rule) {
+    if (rule.rhs.tag == EQUALITY_EXPR_RELATIONAL) {
+        return eval_rel_expr(*rule.completed_from.arr[0]);
+    } else if (rule.rhs.tag == EQUALITY_EXPR_EQUAL) {
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_eq_expr(*rule.completed_from.arr[0]), eval_rel_expr(*rule.completed_from.arr[1]), ==);
+    } else if (rule.rhs.tag == EQUALITY_EXPR_NOT_EQUAL) {
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_eq_expr(*rule.completed_from.arr[0]), eval_rel_expr(*rule.completed_from.arr[1]), !=);
+    } else {
+        preprocessor_fatal_error(0, 0, 0, "Equality expression tag is not recognized");
+    }
+}
+
+static struct maybe_signed_intmax eval_and_expr(struct earley_rule rule) {
+    if (rule.rhs.tag == AND_EXPR_EQUALITY) {
+        return eval_eq_expr(*rule.completed_from.arr[0]);
+    } else if (rule.rhs.tag == AND_EXPR_NORMAL) {
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_and_expr(*rule.completed_from.arr[0]), eval_eq_expr(*rule.completed_from.arr[1]), &);
+    } else {
+        preprocessor_fatal_error(0, 0, 0, "And expression tag is not recognized");
+    }
+}
+
+static struct maybe_signed_intmax eval_eor_expr(struct earley_rule rule) {
+    if (rule.rhs.tag == EXCLUSIVE_OR_EXPR_AND) {
+        return eval_and_expr(*rule.completed_from.arr[0]);
+    } else if (rule.rhs.tag == EXCLUSIVE_OR_EXPR_NORMAL) {
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_eor_expr(*rule.completed_from.arr[0]), eval_and_expr(*rule.completed_from.arr[1]), ^);
+    } else {
+        preprocessor_fatal_error(0, 0, 0, "Exclusive or expression tag is not recognized");
+    }
+}
+
+static struct maybe_signed_intmax eval_ior_expr(struct earley_rule rule) {
+    if (rule.rhs.tag == INCLUSIVE_OR_EXPR_EXCLUSIVE_OR) {
+        return eval_eor_expr(*rule.completed_from.arr[0]);
+    } else if (rule.rhs.tag == INCLUSIVE_OR_EXPR_NORMAL) {
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_ior_expr(*rule.completed_from.arr[0]), eval_eor_expr(*rule.completed_from.arr[1]), |);
+    } else {
+        preprocessor_fatal_error(0, 0, 0, "Inclusive or expression tag is not recognized");
+    }
+}
+
+static struct maybe_signed_intmax eval_land_expr(struct earley_rule rule) {
+    if (rule.rhs.tag == LOGICAL_AND_EXPR_INCLUSIVE_OR) {
+        return eval_ior_expr(*rule.completed_from.arr[0]);
+    } else if (rule.rhs.tag == LOGICAL_AND_EXPR_NORMAL) {
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_land_expr(*rule.completed_from.arr[0]), eval_ior_expr(*rule.completed_from.arr[1]), &&);
+    } else {
+        preprocessor_fatal_error(0, 0, 0, "Logical and expression tag is not recognized");
+    }
+}
+
+static struct maybe_signed_intmax eval_lor_expr(struct earley_rule rule) {
+    if (rule.rhs.tag == LOGICAL_OR_EXPR_LOGICAL_AND) {
+        return eval_land_expr(*rule.completed_from.arr[0]);
+    } else if (rule.rhs.tag == LOGICAL_OR_EXPR_NORMAL) {
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_lor_expr(*rule.completed_from.arr[0]), eval_land_expr(*rule.completed_from.arr[1]), ||);
+    } else {
+        preprocessor_fatal_error(0, 0, 0, "Logical or expression tag is not recognized");
+    }
+}
 #pragma clang diagnostic pop
 
 static bool msi_is_nonzero(struct maybe_signed_intmax msi) {

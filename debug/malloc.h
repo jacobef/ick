@@ -24,7 +24,7 @@ _Pragma("clang diagnostic pop")
 #define REALLOC(ptr, size) xrealloc(ptr, size)
 #define FREE(ptr) _Pragma("clang diagnostic push") \
 _Pragma("clang diagnostic ignored \"-Wcast-qual\"") \
-free((void*)(ptr)); \
+do { free((void*)(ptr)); } while (0) \
 _Pragma("clang diagnostic pop")
 
 #endif

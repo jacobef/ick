@@ -103,8 +103,15 @@ static void complete(struct earley_rule *rule, erule_p_vec *out) {
                 erule_p_vec_append(out, to_append);
                 print_with_color(TEXT_COLOR_LIGHT_GREEN, "{completer} ");
                 print_rule(*to_append);
-                print_with_color(TEXT_COLOR_LIGHT_CYAN, " {source:} ");
+                print_with_color(TEXT_COLOR_LIGHT_CYAN, "\n\t{trigger:} ");
                 print_rule(*rule);
+                print_with_color(TEXT_COLOR_LIGHT_CYAN, "\n\t{origin:} ");
+                print_rule(possible_origin);
+                print_with_color(TEXT_COLOR_LIGHT_CYAN, "\n\t{completed from:} ");
+                for (size_t j = 0; j < to_append->completed_from.n_elements; j++) {
+                    printf("\n\t\t");
+                    print_rule(*to_append->completed_from.arr[j]);
+                }
                 printf("\n");
             }
         }
@@ -169,13 +176,6 @@ static void print_symbol(struct symbol sym) {
                 }
                 break;
         }
-        if (sym.val.terminal.is_filled) {
-            printf("(filled: ");
-            set_color(TEXT_COLOR_GREEN);
-            print_token(sym.val.terminal.token);
-            clear_color();
-            printf(") ");
-        }
     } else {
         printf("%s ", sym.val.rule->name);
     }
@@ -212,7 +212,7 @@ static void print_token(struct preprocessing_token token) {
     }
 }
 
-erule_p_vec_p_vec make_charts(pp_token_vec tokens) {
+erule_p_vec_p_vec make_charts(pp_token_vec tokens, const struct production_rule *start_rule) {
     erule_p_vec_p_vec out;
     erule_p_vec_p_vec_init(&out, 0);
 
@@ -223,12 +223,13 @@ erule_p_vec_p_vec make_charts(pp_token_vec tokens) {
     erule_p_vec empty;
     erule_p_vec_init(&empty, 0);
 
-    struct earley_rule *S_rule = MALLOC(sizeof(struct earley_rule));
-
-    *S_rule = (struct earley_rule){
-        .lhs=&tr_preprocessing_file, .rhs=tr_preprocessing_file.alternatives[0], .dot=tr_preprocessing_file.alternatives[0].symbols, .origin_chart=initial_chart, .completed_from=empty
-    };
-    erule_p_vec_append(initial_chart, S_rule);
+    for (size_t i = 0; i < start_rule->n; i++) {
+        struct earley_rule *rule = MALLOC(sizeof(struct earley_rule));
+        *rule = (struct earley_rule) {
+            .lhs=start_rule, .rhs=start_rule->alternatives[i], .dot=start_rule->alternatives[i].symbols, .origin_chart=initial_chart, .completed_from=empty
+        };
+        erule_p_vec_append(initial_chart, rule);
+    }
 
     print_with_color(TEXT_COLOR_LIGHT_RED, "\nInitial Chart:\n");
     print_chart(initial_chart);
@@ -261,10 +262,12 @@ erule_p_vec_p_vec make_charts(pp_token_vec tokens) {
 }
 
 static void flatten_list_rules(struct earley_rule *root);
-static struct earley_rule *get_tree_root(erule_p_vec final_chart) {
-    for (size_t i = 0; i < final_chart.n_elements; i++) {
-        struct earley_rule *rule = final_chart.arr[i];
-        if (rule->lhs == &tr_preprocessing_file && is_completed(*rule)) {
+static struct earley_rule *get_tree_root(erule_p_vec_p_vec charts, const struct production_rule *root_rule) {
+    // TODO make sure the tree root spans the entire file
+    erule_p_vec *final_chart = charts.arr[charts.n_elements-1];
+    for (size_t i = 0; i < final_chart->n_elements; i++) {
+        struct earley_rule *rule = final_chart->arr[i];
+        if (rule->lhs == root_rule && is_completed(*rule)) {
             flatten_list_rules(rule);
             return rule;
         }
@@ -293,23 +296,8 @@ static erule_p_vec flatten_list_rule(struct earley_rule list_rule) {
     return out;
 }
 
-static bool is_list_rule(const struct production_rule *rule) {
-    if (rule->n != 2) return false;
-    bool found_lr_symbol = false;
-    bool found_concrete_symbol = false;
-    for (size_t i = 0; i < rule->alternatives[1].n; i++) {
-        struct symbol symbol = rule->alternatives[1].symbols[i];
-        if (!symbol.is_terminal && !found_lr_symbol && symbol.val.rule == rule) {
-            found_lr_symbol = true;
-        } else if (!symbol.is_terminal) {
-            found_concrete_symbol = true;
-        }
-    }
-    return found_lr_symbol && found_concrete_symbol;
-}
-
 static void flatten_list_rules(struct earley_rule *root) {
-    if (is_list_rule(root->lhs)) {
+    if (root->lhs->is_list_rule) { // TODO autodetect list rules
         erule_p_vec old_completed_from = root->completed_from;
         root->completed_from = flatten_list_rule(*root);
         erule_p_vec_free_internals(&old_completed_from);
@@ -321,16 +309,18 @@ static void flatten_list_rules(struct earley_rule *root) {
 
 void print_tree(struct earley_rule *root, size_t indent) {
     if (root == NULL) {
-        printf("No tree to print.\n");
+        print_with_color(TEXT_COLOR_RED, "No tree to print.\n");
         return;
     }
+    enum text_color colors[] = {TEXT_COLOR_RED, TEXT_COLOR_GREEN, TEXT_COLOR_BLUE};
+    size_t num_colors = sizeof(colors) / sizeof(colors[0]);
     for (size_t i = 0; i < indent; i++) {
-        printf("\t");
+        print_with_color(colors[i % num_colors], ".\t");
     }
     print_rule(*root);
     printf("\n");
     for (size_t i = 0; i < root->completed_from.n_elements; i++) {
-        print_tree(root->completed_from.arr[i], indent+1);
+        print_tree(root->completed_from.arr[i], indent + 1);
     }
 }
 
@@ -416,18 +406,20 @@ static void deal_with_macros(struct earley_rule root) {
 }
 
 void test_parser(pp_token_vec tokens) {
-    erule_p_vec_p_vec charts = make_charts(tokens);
+    erule_p_vec_p_vec charts = make_charts(tokens, &tr_preprocessing_file);
     for (size_t i = 0; i < charts.n_elements; i++) {
         print_with_color(TEXT_COLOR_LIGHT_RED, "Chart %zu:\n", i);
         print_chart(charts.arr[i]);
     }
     printf("\n");
-    struct earley_rule *root = get_tree_root(*charts.arr[charts.n_elements-1]);
+    struct earley_rule *root = get_tree_root(charts, &tr_preprocessing_file);
     if (root == NULL) {
         printf("No tree to print; parsing failed.\n");
         return;
     }
+    print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");
+    print_tree(root, 0);
     deal_with_macros(*root);
-//    print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");
-//    print_tree(root, 0);
+    print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");
+    print_tree(root, 0);
 }

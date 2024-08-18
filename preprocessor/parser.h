@@ -41,6 +41,7 @@ struct production_rule {
     const char *name;
     const struct alternative *alternatives;
     const size_t n;
+    bool is_list_rule;
 };
 
 typedef struct earley_rule *erule_p;
@@ -56,7 +57,7 @@ struct earley_rule {
 
 typedef erule_p_vec *erule_p_vec_p;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(erule_p_vec_p)
-erule_p_vec_p_vec make_charts(pp_token_vec tokens);
+erule_p_vec_p_vec make_charts(pp_token_vec tokens, const struct production_rule *start_rule);
 
 void print_chart(erule_p_vec *chart);
 void print_tree(struct earley_rule *root, size_t indent);

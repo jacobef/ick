@@ -21,18 +21,18 @@ struct str_view replace_trigraphs(struct str_view input) {
         memcpy(out_chars, input.chars, input.n);
         return (struct str_view) { .chars = out_chars, .n = input.n };
     }
-    // This can be an unsigned char array because these characters must be nonnegative; see 6.2.5 paragraph 3.
+    // This can be an unsigned char array because these characters must be non-negative; see 6.2.5 paragraph 3.
     // For the same reason, they're also OK to use as indices.
-    unsigned char trigraphs_to_replacements[CHAR_MAX+1];
-    trigraphs_to_replacements['='] = '#';
-    trigraphs_to_replacements['/'] = '\\';
-    trigraphs_to_replacements['\''] = '^';
-    trigraphs_to_replacements['('] = '[';
-    trigraphs_to_replacements[')'] = ']';
-    trigraphs_to_replacements['!'] = '|';
-    trigraphs_to_replacements['<'] = '{';
-    trigraphs_to_replacements['>'] = '}';
-    trigraphs_to_replacements['-'] = '~';
+    unsigned char trigraphs_to_replacements[] = {
+            ['='] = '#',
+            ['/'] = '\\',
+            ['('] = '[',
+            [')'] = ']',
+            ['!'] = '|',
+            ['<'] = '{',
+            ['>'] = '}',
+            ['-'] = '~'
+    };
 
     unsigned char *output_chars = MALLOC(input.n);
     const unsigned char *reader = input.chars;

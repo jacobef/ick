@@ -15,9 +15,6 @@ set(SOURCE_FILES
         preprocessor/sized_str.c
         preprocessor/conditional_inclusion.c
         preprocessor/conditional_inclusion.h
-        preprocessor/char_parser.c
-        preprocessor/char_parser.h
-        preprocessor/char_rule_definitions.c
         mappings/typedefs.h
 )
 

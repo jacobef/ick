@@ -8,7 +8,6 @@
 #include "preprocessor/escaped_newlines.h"
 #include "preprocessor/pp_token.h"
 #include "preprocessor/parser.h"
-#include "preprocessor/char_parser.h"
 #include "debug/color_print.h"
 
 char *ick_progname;
