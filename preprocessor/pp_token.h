@@ -72,7 +72,7 @@ struct char_const_str_literal_detector {
 
 
 struct punctuator_detector {
-    struct trie *place_in_trie;
+    const struct trie *place_in_trie;
     enum detection_status status;
 };
 
@@ -102,7 +102,7 @@ struct preprocessing_token {
 
 bool in_src_char_set(unsigned char c);
 
-bool token_is_str(struct preprocessing_token token, const unsigned char *str);
+bool token_is_str(struct preprocessing_token token, const char *str);
 
 struct preprocessing_token_detector {
     struct header_name_detector header_name_detector;
@@ -127,9 +127,9 @@ pp_token_vec get_pp_tokens(struct str_view input);
 bool is_valid_token(struct str_view token, enum exclude_from_detection exclude);
 enum pp_token_type get_token_type_from_str(struct str_view token, enum exclude_from_detection exclude);
 
-void print_tokens(pp_token_vec tokens);
+void print_tokens(pp_token_vec tokens, bool verbose);
 
-static struct trie punctuators_trie = {
+static const struct trie punctuators_trie = {
     /*
     punctuators:
     [ ] ( ) { } . ->

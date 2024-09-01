@@ -19,16 +19,16 @@ char *new_fname_ext(const char *fname, const char *new_ext) {
 }
 
 unsigned long get_filesize(FILE *file) {
-    long file_pos = ftell(file);
+    const long file_pos = ftell(file);
     if (file_pos == -1) {
         driver_error("Error in getting the initial file position. Errno: %d (%s).", errno, strerror(errno));
     }
     fseek(file, 0, SEEK_END);
-    long filesize = ftell(file);
+    const long filesize = ftell(file);
     if (filesize == -1) {
         driver_error("Input file is likely too large (ftell failed to seek to the end). Errno: %d (%s).", errno, strerror(errno));
     } else if ((unsigned long)filesize >= SIZE_MAX) {
-        driver_error("Input file is too large (%l bytes); should be no larger than SIZE_MAX (%zu)", filesize, SIZE_MAX);
+        driver_error("Input file is too large (%l bytes); the limit is SIZE_MAX (%zu)", filesize, SIZE_MAX);
     }
     fseek(file, file_pos, SEEK_SET);
     return (unsigned long)filesize;

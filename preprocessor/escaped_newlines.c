@@ -5,7 +5,7 @@
 
 #include "debug/malloc.h"
 
-struct str_view rm_escaped_newlines(struct str_view input) {
+struct str_view rm_escaped_newlines(const struct str_view input) {
     if (input.n < 2) {
         unsigned char *out_chars = MALLOC(input.n);
         memcpy(out_chars, input.chars, input.n);

@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-void set_color(enum text_color color) {
+void set_color(const enum text_color color) {
     const char *color_code;
     switch (color) {
         case TEXT_COLOR_RED:
@@ -60,7 +60,7 @@ void clear_color(void) {
 }
 
 __attribute__((format(printf, 2, 3)))
-void print_with_color(enum text_color color, const char *text, ...) {
+void print_with_color(const enum text_color color, const char *const text, ...) {
     va_list args;
     va_start(args, text);
     set_color(color);

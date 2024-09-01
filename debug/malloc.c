@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void *xmalloc(size_t size) {
+void *xmalloc(const size_t size) {
     void *ptr = malloc(size);
     if (!ptr) {
         driver_error("malloc failed");
@@ -14,7 +14,7 @@ void *xmalloc(size_t size) {
     return ptr;
 }
 
-void *xrealloc(void *ptr, size_t size) {
+void *xrealloc(void *ptr, const size_t size) {
     void *new_ptr = realloc(ptr, size);
     if (!new_ptr) {
         driver_error("realloc failed");

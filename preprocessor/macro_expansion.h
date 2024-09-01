@@ -57,7 +57,7 @@ DEFINE_VEC_TYPE_AND_FUNCTIONS(given_macro_arg)
 
 void define_object_like_macro(struct earley_rule rule, str_view_macro_args_and_body_map *macros);
 void define_function_like_macro(struct earley_rule rule, str_view_macro_args_and_body_map *macros);
-void print_macros(str_view_macro_args_and_body_map *macros);
+void print_macros(const str_view_macro_args_and_body_map *macros);
 void reconstruct_macro_use(struct macro_use_info info);
 pp_token_vec replace_macros(pp_token_vec tokens, str_view_macro_args_and_body_map macro_map);
 

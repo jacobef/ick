@@ -32,12 +32,14 @@ struct symbol {
 };
 
 struct alternative {
+    // represents e.g. B C D (in the context of A -> B C D | E F G)
     struct symbol *symbols;
     size_t n;
     int tag;
 };
 
 struct production_rule {
+    // represents e.g. A -> B C D | E F G
     const char *name;
     const struct alternative *alternatives;
     const size_t n;
@@ -48,6 +50,7 @@ typedef struct earley_rule *erule_p;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(erule_p)
 
 struct earley_rule {
+    // represents e.g. A -> B [dot] C D (in the context of A -> B C D | E F G)
     const struct production_rule *lhs;
     struct alternative rhs;
     struct symbol *dot;
@@ -59,8 +62,8 @@ typedef erule_p_vec *erule_p_vec_p;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(erule_p_vec_p)
 erule_p_vec_p_vec make_charts(pp_token_vec tokens, const struct production_rule *start_rule);
 
-void print_chart(erule_p_vec *chart);
-void print_tree(struct earley_rule *root, size_t indent);
+void print_chart(const erule_p_vec *chart);
+void print_tree(const struct earley_rule *root, size_t indent);
 void test_parser(pp_token_vec tokens);
 
 

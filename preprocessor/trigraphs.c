@@ -23,7 +23,7 @@ struct str_view replace_trigraphs(struct str_view input) {
     }
     // This can be an unsigned char array because these characters must be non-negative; see 6.2.5 paragraph 3.
     // For the same reason, they're also OK to use as indices.
-    unsigned char trigraphs_to_replacements[] = {
+    const unsigned char trigraphs_to_replacements[] = {
             ['='] = '#',
             ['/'] = '\\',
             ['('] = '[',

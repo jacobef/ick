@@ -11,6 +11,6 @@ struct trie {
     unsigned char val;
 };
 
-struct trie *trie_get_child(struct trie *trie, unsigned char c);
+struct trie *trie_get_child(const struct trie *trie, unsigned char c);
 
 #endif //ICK_TRIE_H

@@ -52,11 +52,11 @@
 #define OPT(_name, _rule) PR_RULE(_name, false, ALT(OPT_ONE, NT_SYM(_rule)), EMPTY_ALT(OPT_NONE))
 
 static bool match_preprocessing_token(__attribute__((unused)) struct preprocessing_token token) {
-    return !token_is_str(token, (unsigned char*)"\n");
+    return !token_is_str(token, "\n");
 }
 
 static bool match_lparen(struct preprocessing_token token) {
-    return token_is_str(token, (unsigned char*)"(") && !token.after_whitespace;
+    return token_is_str(token, "(") && !token.after_whitespace;
 }
 
 static bool match_identifier(struct preprocessing_token token) {
@@ -72,33 +72,37 @@ static bool match_character_constant(struct preprocessing_token token) {
 }
 
 static bool match_non_hashtag(struct preprocessing_token token) {
-    return match_preprocessing_token(token) && !token_is_str(token, (unsigned char*)"#");
+    return match_preprocessing_token(token) && !token_is_str(token, "#");
 }
 
 static bool match_non_directive_name(struct preprocessing_token token) {
-    return !token_is_str(token, (unsigned char*)"define") &&
-           !token_is_str(token, (unsigned char*)"undef") &&
-           !token_is_str(token, (unsigned char*)"if") &&
-           !token_is_str(token, (unsigned char*)"ifdef") &&
-           !token_is_str(token, (unsigned char*)"ifndef") &&
-           !token_is_str(token, (unsigned char*)"elif") &&
-           !token_is_str(token, (unsigned char*)"else") &&
-           !token_is_str(token, (unsigned char*)"endif") &&
-           !token_is_str(token, (unsigned char*)"include") &&
-           !token_is_str(token, (unsigned char*)"line") &&
-           !token_is_str(token, (unsigned char*)"error") &&
-           !token_is_str(token, (unsigned char*)"pragma");
+    return !token_is_str(token, "define") &&
+           !token_is_str(token, "undef") &&
+           !token_is_str(token, "if") &&
+           !token_is_str(token, "ifdef") &&
+           !token_is_str(token, "ifndef") &&
+           !token_is_str(token, "elif") &&
+           !token_is_str(token, "else") &&
+           !token_is_str(token, "endif") &&
+           !token_is_str(token, "include") &&
+           !token_is_str(token, "line") &&
+           !token_is_str(token, "error") &&
+           !token_is_str(token, "pragma");
 }
 
 static bool is_int_suffix(struct str_view str_view) {
-#define IS(str) str_view_cstr_eq(str_view, (const unsigned char*)str)
-    return IS("u") || IS("U") || IS("l") || IS("L")
-            || IS("ll") || IS("LL")
-            || IS("ul") || IS("uL") || IS("Ul") || IS("UL")
-            || IS("lu") || IS("lU") || IS("Lu") || IS("LU")
-            || IS("llu") || IS("llU") || IS("lLu") || IS("LLu") || IS("LLU")
-            || IS("ull") || IS("uLL") || IS("Ull") || IS("ULL");
-#undef IS
+    char *suffixes[] = {
+            "u", "U", "l", "L",
+            "ll", "LL",
+            "ul", "uL", "Ul", "UL",
+            "lu", "lU", "Lu", "LU",
+            "llu", "llU", "lLu", "LLu", "LLU",
+            "ull", "uLL", "Ull", "ULL"
+    };
+    for (size_t i = 0; i < sizeof(suffixes)/sizeof(char*); i++) {
+        if (str_view_cstr_eq(str_view, suffixes[i])) return true;
+    }
+    return false;
 }
 
 static bool match_integer_constant(struct preprocessing_token token) {
@@ -170,11 +174,11 @@ static bool is_floating_suffix(unsigned char c) {
 }
 
 static bool match_decimal_floating_constant(struct preprocessing_token token) {
-    ssize_t fi = scan_fractional_constant(token.name, 0);
-    ssize_t di = scan_digit_sequence(token.name, 0);
+    const ssize_t fi = scan_fractional_constant(token.name, 0);
+    const ssize_t di = scan_digit_sequence(token.name, 0);
     if (fi == -1 && di == -1) return false;
     else if (fi != -1) { // fractional-constant exponent-part_opt floating-suffix_opt
-        ssize_t ei = scan_exponent_part(token.name, (size_t) fi);
+        const ssize_t ei = scan_exponent_part(token.name, (size_t) fi);
         if (ei == -1) { // exponent part doesn't exist
             // should be a floating suffix or the end
             return (size_t)fi == token.name.n || ((size_t)fi+1 == token.name.n && is_floating_suffix(token.name.chars[fi]));
@@ -183,7 +187,7 @@ static bool match_decimal_floating_constant(struct preprocessing_token token) {
             return (size_t)ei == token.name.n || ((size_t)ei+1 == token.name.n && is_floating_suffix(token.name.chars[ei]));
         }
     } else { // digit-sequence exponent-part floating-suffix_opt
-        ssize_t ei = scan_exponent_part(token.name, (size_t) di);
+        const ssize_t ei = scan_exponent_part(token.name, (size_t) di);
         if (ei == -1) return false;
         return (size_t) ei == token.name.n || ((size_t)ei+1 == token.name.n && is_floating_suffix(token.name.chars[ei]));
     }

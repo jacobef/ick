@@ -2,7 +2,7 @@
 #include "pp_token.h"
 #include "preprocessor/diagnostics.h"
 
-bool in_src_char_set(unsigned char c) {
+bool in_src_char_set(const unsigned char c) {
     if (isdigit(c) || isalpha(c)) return true;
     switch (c) {
         case '!':case '"':case '#':case '%':case '&':case '\'':case '(':case ')':case '*':case '+':case ',':case '-':
@@ -15,11 +15,11 @@ bool in_src_char_set(unsigned char c) {
     }
 }
 
-static bool is_octal_digit(unsigned char c) {
+static bool is_octal_digit(const unsigned char c) {
     return c >= '0' && c <= '7';
 }
 
-static struct header_name_detector detect_header_name(struct header_name_detector detector, unsigned char c) {
+static struct header_name_detector detect_header_name(struct header_name_detector detector, const unsigned char c) {
     if (detector.status == MATCH) detector.status = IMPOSSIBLE;
     if (detector.status == IMPOSSIBLE) return detector;
 
@@ -44,7 +44,7 @@ static struct header_name_detector detect_header_name(struct header_name_detecto
     return detector;
 }
 
-static struct universal_character_name_detector detect_universal_character_name(struct universal_character_name_detector detector, unsigned char c) {
+static struct universal_character_name_detector detect_universal_character_name(struct universal_character_name_detector detector, const unsigned char c) {
     if (detector.status == IMPOSSIBLE) return detector;
 
     if (detector.is_first_char && c == '\\') {
@@ -85,7 +85,7 @@ static struct universal_character_name_detector detect_universal_character_name(
     return detector;
 }
 
-static struct identifier_detector detect_identifier(struct identifier_detector detector, unsigned char c) {
+static struct identifier_detector detect_identifier(struct identifier_detector detector, const unsigned char c) {
     if (detector.status == IMPOSSIBLE) return detector;
 
     if (detector.is_first_char && isdigit(c)) {
@@ -117,7 +117,7 @@ static struct identifier_detector detect_identifier(struct identifier_detector d
     return detector;
 }
 
-static struct pp_number_detector detect_pp_number(struct pp_number_detector detector, unsigned char c) {
+static struct pp_number_detector detect_pp_number(struct pp_number_detector detector, const unsigned char c) {
     if (detector.status == IMPOSSIBLE) return detector;
 
     if (detector.is_first_char && isdigit(c)) {
@@ -162,7 +162,7 @@ static struct pp_number_detector detect_pp_number(struct pp_number_detector dete
     return detector;
 }
 
-static struct escape_sequence_detector detect_escape_sequence(struct escape_sequence_detector detector, unsigned char c) {
+static struct escape_sequence_detector detect_escape_sequence(struct escape_sequence_detector detector, const unsigned char c) {
     if (detector.status == IMPOSSIBLE) return detector;
 
     if (detector.next_char_invalid) {
@@ -218,7 +218,7 @@ static struct escape_sequence_detector detect_escape_sequence(struct escape_sequ
     return detector;
 }
 
-static struct char_const_str_literal_detector detect_char_const_str_literal(struct char_const_str_literal_detector detector, char quote, unsigned char c) {
+static struct char_const_str_literal_detector detect_char_const_str_literal(struct char_const_str_literal_detector detector, const char quote, const unsigned char c) {
     if (detector.just_opened) detector.just_opened = false;
 
     if (detector.status == MATCH) {
@@ -279,19 +279,19 @@ static struct char_const_str_literal_detector detect_char_const_str_literal(stru
     return detector;
 }
 
-static struct char_const_str_literal_detector detect_character_constant(struct char_const_str_literal_detector detector, unsigned char c) {
+static struct char_const_str_literal_detector detect_character_constant(struct char_const_str_literal_detector detector, const unsigned char c) {
     return detect_char_const_str_literal(detector, '\'', c);
 }
 
-static struct char_const_str_literal_detector detect_string_literal(struct char_const_str_literal_detector detector, unsigned char c) {
+static struct char_const_str_literal_detector detect_string_literal(struct char_const_str_literal_detector detector, const unsigned char c) {
     return detect_char_const_str_literal(detector, '"', c);
 }
 
-static struct punctuator_detector detect_punctuator(struct punctuator_detector detector, unsigned char c) {
+static struct punctuator_detector detect_punctuator(struct punctuator_detector detector, const unsigned char c) {
 
     if (detector.status == IMPOSSIBLE) return detector;
 
-    struct trie *next_place_in_trie = trie_get_child(detector.place_in_trie, c);
+    const struct trie *const next_place_in_trie = trie_get_child(detector.place_in_trie, c);
     if (next_place_in_trie == NULL) {
         detector.status = IMPOSSIBLE;
     }
@@ -303,7 +303,7 @@ static struct punctuator_detector detect_punctuator(struct punctuator_detector d
     return detector;
 }
 
-static struct single_char_detector detect_single_char(struct single_char_detector detector, unsigned char c) {
+static struct single_char_detector detect_single_char(struct single_char_detector detector, const unsigned char c) {
     if (detector.status == IMPOSSIBLE) return detector;
     else if (detector.status == MATCH) detector.status = IMPOSSIBLE;
     // newlines aren't actually tokens but they're significant in phase 4, so it's easier to treat them as tokens
@@ -312,7 +312,7 @@ static struct single_char_detector detect_single_char(struct single_char_detecto
     return detector;
 }
 
-static struct comment_detector detect_comment(struct comment_detector detector, unsigned char c) {
+static struct comment_detector detect_comment(struct comment_detector detector, const unsigned char c) {
     if (detector.status == IMPOSSIBLE) return detector;
 
     detector.prev_status = detector.status;
@@ -346,7 +346,7 @@ static struct comment_detector detect_comment(struct comment_detector detector, 
     return detector;
 }
 
-static struct preprocessing_token_detector detect_preprocessing_token(struct preprocessing_token_detector detector, unsigned char c, enum exclude_from_detection exclude) {
+static struct preprocessing_token_detector detect_preprocessing_token(struct preprocessing_token_detector detector, const unsigned char c, const enum exclude_from_detection exclude) {
     if (detector.status == IMPOSSIBLE) return detector;
 
     detector.prev_status = detector.status;
@@ -391,7 +391,7 @@ static struct preprocessing_token_detector detect_preprocessing_token(struct pre
     return detector;
 }
 
-static enum pp_token_type get_token_type(struct preprocessing_token_detector detector) {
+static enum pp_token_type get_token_type(const struct preprocessing_token_detector detector) {
     if (detector.string_literal_detector.status == MATCH) return STRING_LITERAL;
     else if (detector.header_name_detector.status == MATCH) return HEADER_NAME;
     else if (detector.identifier_detector.status == MATCH) return IDENTIFIER;
@@ -405,27 +405,27 @@ static enum pp_token_type get_token_type(struct preprocessing_token_detector det
     }
 }
 
-bool token_is_str(struct preprocessing_token token, const unsigned char *str) {
+bool token_is_str(const struct preprocessing_token token, const char *const str) {
     return str_view_cstr_eq(token.name, str);
 }
 
-static bool in_include_directive(pp_token_vec tokens) {
+static bool in_include_directive(const pp_token_vec tokens) {
     const bool at_beginning_of_file = tokens.n_elements == 2;
     const bool after_hashtag_include = tokens.n_elements >= 2
-                                        && token_is_str(tokens.arr[tokens.n_elements - 2], (unsigned char*)"#")
-                                        && token_is_str(tokens.arr[tokens.n_elements - 1], (unsigned char*)"include");
+                                        && token_is_str(tokens.arr[tokens.n_elements - 2], "#")
+                                        && token_is_str(tokens.arr[tokens.n_elements - 1], "include");
     const bool hashtag_after_newline = tokens.n_elements >= 3
-                                        && token_is_str(tokens.arr[tokens.n_elements - 3], (unsigned char*)"\n");
+                                        && token_is_str(tokens.arr[tokens.n_elements - 3], "\n");
     return after_hashtag_include && (at_beginning_of_file || hashtag_after_newline);
 }
 
 static struct preprocessing_token_detector get_initial_detector(void) {
-    struct char_const_str_literal_detector initial_ccsld = {.status=INCOMPLETE, .looking_for_open_quote=true, .in_literal=false,
+    const struct char_const_str_literal_detector initial_ccsld = {.status=INCOMPLETE, .looking_for_open_quote=true, .in_literal=false,
             .prev_esc_seq_status=INCOMPLETE, .is_first_char=true, .just_opened=false,
             .esc_seq_detector={.status=INCOMPLETE, .looking_for_hex=false, .looking_for_octal=false,
                     .next_char_invalid=false,.is_first_char=true, .is_second_char=false,
                     .n_octals=0, .ucn_detector=initial_ucn_detector}};
-    struct preprocessing_token_detector initial_detector = {
+    const struct preprocessing_token_detector initial_detector = {
             .status=INCOMPLETE,
             .prev_status=INCOMPLETE,
             .header_name_detector={.status=INCOMPLETE, .is_first_char=true},
@@ -444,7 +444,7 @@ static struct preprocessing_token_detector get_initial_detector(void) {
     return initial_detector;
 }
 
-bool is_valid_token(struct str_view token, enum exclude_from_detection exclude) {
+bool is_valid_token(const struct str_view token, const enum exclude_from_detection exclude) {
     struct preprocessing_token_detector detector = get_initial_detector();
     for (size_t i = 0; i < token.n; i++) {
         detector = detect_preprocessing_token(detector, token.chars[i], exclude);
@@ -452,7 +452,7 @@ bool is_valid_token(struct str_view token, enum exclude_from_detection exclude) 
     return detector.status == MATCH;
 }
 
-enum pp_token_type get_token_type_from_str(struct str_view token, enum exclude_from_detection exclude) {
+enum pp_token_type get_token_type_from_str(const struct str_view token, const enum exclude_from_detection exclude) {
     struct preprocessing_token_detector detector = get_initial_detector();
     for (size_t i = 0; i < token.n; i++) {
         detector = detect_preprocessing_token(detector, token.chars[i], exclude);
@@ -461,9 +461,8 @@ enum pp_token_type get_token_type_from_str(struct str_view token, enum exclude_f
 }
 
 
-pp_token_vec get_pp_tokens(struct str_view input) {
-    pp_token_vec tokens;
-    pp_token_vec_init(&tokens, 0);
+pp_token_vec get_pp_tokens(const struct str_view input) {
+    pp_token_vec tokens = pp_token_vec_new(input.n / 3);  // guess 3 chars per token
     bool match_exists = false;
     struct preprocessing_token_detector token_detector = get_initial_detector();
     struct preprocessing_token_detector detector_at_most_recent_match;
@@ -505,8 +504,7 @@ pp_token_vec get_pp_tokens(struct str_view input) {
         pp_token_vec_append(&tokens, token_at_most_recent_match);
     }
 
-    pp_token_vec tokens_without_comments;
-    pp_token_vec_init(&tokens_without_comments, tokens.n_elements);
+    pp_token_vec tokens_without_comments = pp_token_vec_new(tokens.n_elements);
     for (size_t i = 0; i < tokens.n_elements; i++) {
         if (tokens.arr[i].type != COMMENT) {
             pp_token_vec_append(&tokens_without_comments, tokens.arr[i]);
@@ -517,36 +515,41 @@ pp_token_vec get_pp_tokens(struct str_view input) {
     return tokens_without_comments;
 }
 
-void print_tokens(pp_token_vec tokens) {
-    for (size_t i = 0; i < tokens.n_elements; i++) {
-        struct preprocessing_token token = tokens.arr[i];
-        for (size_t j = 0; j < token.name.n; j++) {
-            if (token.name.chars[j] == '\n') {
-                printf("[newline]");
-            } else {
-                printf("%c", token.name.chars[j]);
+void print_tokens(const pp_token_vec tokens, const bool verbose) {
+    if (verbose) {
+        for (size_t i = 0; i < tokens.n_elements; i++) {
+            const struct preprocessing_token token = tokens.arr[i];
+            for (size_t j = 0; j < token.name.n; j++) {
+                if (token.name.chars[j] == '\n') {
+                    printf("[newline]");
+                } else {
+                    printf("%c", token.name.chars[j]);
+                }
             }
+            printf(" (");
+            if (token.type == HEADER_NAME) printf("header name");
+            else if (token.type == IDENTIFIER) printf("identifier");
+            else if (token.type == PP_NUMBER) printf("preprocessing number");
+            else if (token.type == CHARACTER_CONSTANT) printf("character constant");
+            else if (token.type == STRING_LITERAL) printf("string literal");
+            else if (token.type == PUNCTUATOR) printf("punctuator");
+            else if (token.type == SINGLE_CHAR) printf("single character");
+            printf(")");
+            if (token.after_whitespace) printf(" (after whitespace)");
+            printf("\n");
         }
-        printf (" (");
-        if (token.type == HEADER_NAME) printf("header name");
-        else if (token.type == IDENTIFIER) printf("identifier");
-        else if (token.type == PP_NUMBER) printf("preprocessing number");
-        else if (token.type == CHARACTER_CONSTANT) printf("character constant");
-        else if (token.type == STRING_LITERAL) printf("string literal");
-        else if (token.type == PUNCTUATOR) printf("punctuator");
-        else if (token.type == SINGLE_CHAR) printf("single character");
-        printf(")");
-        if (token.after_whitespace) printf(" (after whitespace)");
-        printf("\n");
     }
 
     // print normally
     for (size_t i = 0; i < tokens.n_elements; i++) {
-        struct preprocessing_token token = tokens.arr[i];
+        const struct preprocessing_token token = tokens.arr[i];
+        if (token.after_whitespace) printf(" ");
         for (size_t j = 0; j < token.name.n; j++) {
             printf("%c", token.name.chars[j]);
         }
-        printf(" ");
+        if (str_view_cstr_eq(token.name, ";")) {
+            printf("\n");
+        }
     }
     printf("\n");
 }

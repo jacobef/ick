@@ -1,5 +1,6 @@
 #include <math.h>
 #include <limits.h>
+#include <inttypes.h>
 
 #include "conditional_inclusion.h"
 #include "preprocessor/diagnostics.h"
@@ -9,11 +10,11 @@
 typedef unsigned char uchar;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(uchar)
 
-static inline struct maybe_signed_intmax msi_s(target_intmax_t num) {
+static struct maybe_signed_intmax msi_s(const target_intmax_t num) {
     return (struct maybe_signed_intmax) { .is_signed = true, .val.signd = num };
 }
 
-static inline struct maybe_signed_intmax msi_u(target_uintmax_t num) {
+static struct maybe_signed_intmax msi_u(const target_uintmax_t num) {
     return (struct maybe_signed_intmax) { .is_signed = false, .val.unsignd = num };
 }
 
@@ -44,12 +45,12 @@ if (!(msi1).is_signed && !(msi2).is_signed) {               \
 } while (0)
 
 
-static unsigned char get_ascii_value(unsigned char c) {
+static unsigned char get_ascii_value(const unsigned char c) {
     // TODO hardcode all possible values so this doesn't depend on the compiler
     return c;
 }
 
-static unsigned char get_hex_digit_value(unsigned char digit) {
+static unsigned char get_hex_digit_value(const unsigned char digit) {
     if ('0' <= digit && digit <= '9') return digit - '0';
     else if (digit == 'a' || digit == 'A') return 10;
     else if (digit == 'b' || digit == 'B') return 11;
@@ -62,17 +63,17 @@ static unsigned char get_hex_digit_value(unsigned char digit) {
     }
 }
 
-static inline unsigned char extract_bits(unsigned int num, unsigned char i, unsigned char n) {
+static unsigned char extract_bits(const unsigned int num, const unsigned char i, const unsigned char n) {
     const unsigned int mask = (1 << n) - 1;
     return (unsigned char)((num & (mask << i)) >> i);
 }
 
-static unsigned int eval_escape_sequence(struct str_view esc_seq, bool is_wide) {
-    unsigned int max_esc_seq_val = is_wide ? ((uint64_t)1 << (sizeof(wchar_t) * 8)) - 1 : UCHAR_MAX;
+static unsigned int eval_escape_sequence(const struct str_view esc_seq, const bool is_wide) {
+    const unsigned int max_esc_seq_val = is_wide ? ((uint64_t)1 << (sizeof(wchar_t) * 8)) - 1 : UCHAR_MAX;
     if ('0' <= esc_seq.chars[1] && esc_seq.chars[1] <= '7') {
         unsigned int out = 0;
         for (size_t i = 1; i < esc_seq.n; i++) {
-            out += (unsigned int)((esc_seq.chars[i] - '0') << ((esc_seq.n - 1 - i) * 3));
+            out += (unsigned int) ((esc_seq.chars[i] - '0') << ((esc_seq.n - 1 - i) * 3));
         }
         if (out > max_esc_seq_val) {
             preprocessor_fatal_error(0, 0, 0, "octal escape sequence represents a number too large");
@@ -90,7 +91,7 @@ static unsigned int eval_escape_sequence(struct str_view esc_seq, bool is_wide) 
     } else if (esc_seq.chars[1] == 'u' || esc_seq.chars[1] == 'U') {
         unsigned int code_point = 0;
         for (size_t i = 2; i < esc_seq.n; i++) {
-            code_point += (unsigned int)(get_hex_digit_value(esc_seq.chars[i]) << ((esc_seq.n - 1 - i) * 4));
+            code_point += (unsigned int) (get_hex_digit_value(esc_seq.chars[i]) << ((esc_seq.n - 1 - i) * 4));
         }
         if ((code_point < 0xA0u && code_point != 0x24u && code_point != 0x40u && code_point != 0x60u) || code_point > 0x10FFFFu) {
             preprocessor_fatal_error(0, 0, 0, "invalid universal character name");
@@ -98,19 +99,19 @@ static unsigned int eval_escape_sequence(struct str_view esc_seq, bool is_wide) 
         if (code_point <= 0x7F || is_wide) {
             return code_point;
         } else if (code_point <= 0x7FF) {
-            unsigned char low_byte = 0x80 | extract_bits(code_point, 0, 6);
-            unsigned char high_byte = 0xC0 | extract_bits(code_point, 6, 5);
+            const unsigned char low_byte = 0x80 | extract_bits(code_point, 0, 6);
+            const unsigned char high_byte = 0xC0 | extract_bits(code_point, 6, 5);
             return (unsigned int)(low_byte | ((unsigned int)high_byte << 8));
         } else if (code_point <= 0xFFFF) {
-            unsigned char low_byte = 0x80 | extract_bits(code_point, 0, 6);
-            unsigned char mid_byte = 0x80 | extract_bits(code_point, 6, 6);
-            unsigned char high_byte = 0xE0 | extract_bits(code_point, 12, 4);
+            const unsigned char low_byte = 0x80 | extract_bits(code_point, 0, 6);
+            const unsigned char mid_byte = 0x80 | extract_bits(code_point, 6, 6);
+            const unsigned char high_byte = 0xE0 | extract_bits(code_point, 12, 4);
             return (unsigned int)(low_byte | ((unsigned int)mid_byte << 8) | ((unsigned int)high_byte << 16));
         } else {
-            unsigned char low_byte = 0x80 | extract_bits(code_point, 0, 6);
-            unsigned char mid_low_byte = 0x80 | extract_bits(code_point, 6, 6);
-            unsigned char mid_high_byte = 0x80 | extract_bits(code_point, 12, 6);
-            unsigned char high_byte = 0xF0 | extract_bits(code_point, 18, 3);
+            const unsigned char low_byte = 0x80 | extract_bits(code_point, 0, 6);
+            const unsigned char mid_low_byte = 0x80 | extract_bits(code_point, 6, 6);
+            const unsigned char mid_high_byte = 0x80 | extract_bits(code_point, 12, 6);
+            const unsigned char high_byte = 0xF0 | extract_bits(code_point, 18, 3);
             return (unsigned int)(low_byte | ((unsigned int)mid_low_byte << 8) | ((unsigned int)mid_high_byte << 16) | ((unsigned int)high_byte << 24));
         }
     } else if (esc_seq.chars[1] == '\'' || esc_seq.chars[1] == '\"' || esc_seq.chars[1] == '?' || esc_seq.chars[1] == '\\') {
@@ -129,7 +130,7 @@ static unsigned int eval_escape_sequence(struct str_view esc_seq, bool is_wide) 
     }
 }
 
-static unsigned char get_esc_seq_n_bytes(struct str_view esc_seq) {
+static unsigned char get_esc_seq_n_bytes(const struct str_view esc_seq) {
     if (esc_seq.chars[1] == 'U') {
         return 4;
     } else if (esc_seq.chars[1] == 'u') {
@@ -139,7 +140,7 @@ static unsigned char get_esc_seq_n_bytes(struct str_view esc_seq) {
     }
 }
 
-static ssize_t scan_esc_seq(struct str_view str, size_t i) {
+static ssize_t scan_esc_seq(const struct str_view str, size_t i) {
     if (i + 1 >= str.n || str.chars[i] != '\\') return -1;
     i++;
     switch (str.chars[i]) {
@@ -147,7 +148,7 @@ static ssize_t scan_esc_seq(struct str_view str, size_t i) {
         case 'a': case 'b': case 'f': case 'n': case 'r': case 't': case 'v':
             return (ssize_t)i+1;
         case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': {
-            size_t first_digit_i = i;
+            const size_t first_digit_i = i;
             while (i - first_digit_i < 3 && i < str.n && '0' <= str.chars[i] && str.chars[i] <= '7') i++;
             return (ssize_t)i;
         }
@@ -157,13 +158,13 @@ static ssize_t scan_esc_seq(struct str_view str, size_t i) {
             return (ssize_t)i;
         case 'u': {
             i++;
-            size_t first_digit_i = i;
+            const size_t first_digit_i = i;
             while (i - first_digit_i < 4 && i < str.n && isxdigit(str.chars[i])) i++;
             return i - first_digit_i == 4 ? (ssize_t)i : -1;
         }
         case 'U': {
             i++;
-            size_t first_digit_i = i;
+            const size_t first_digit_i = i;
             while (i - first_digit_i < 8 && i < str.n && isxdigit(str.chars[i])) i++;
             return i - first_digit_i == 8 ? (ssize_t)i : -1;
         }
@@ -172,7 +173,7 @@ static ssize_t scan_esc_seq(struct str_view str, size_t i) {
     }
 }
 
-static ssize_t scan_c_char(struct str_view str, size_t i) {
+static ssize_t scan_c_char(const struct str_view str, size_t i) {
     if (i >= str.n || str.chars[i] == '\'') return -1;
     if (str.chars[i] == '\\') {
         return scan_esc_seq(str, i);
@@ -189,7 +190,7 @@ struct parsed_char_constant {
     bool is_wide;
 };
 
-static struct parsed_char_constant parse_char_constant(struct str_view char_constant) {
+static struct parsed_char_constant parse_char_constant(const struct str_view char_constant) {
     bool is_wide;
     ssize_t i;
     if (char_constant.chars[0] == 'L') {
@@ -199,10 +200,9 @@ static struct parsed_char_constant parse_char_constant(struct str_view char_cons
         is_wide = false;
         i = 1;
     }
-    str_view_vec c_chars;
-    str_view_vec_init(&c_chars, 0);
+    str_view_vec c_chars = str_view_vec_new(0);
     while (true) {
-        size_t char_start = (size_t)i;
+        const size_t char_start = (size_t)i;
         i = scan_c_char(char_constant, (size_t)i);
         if (i == -1) break;
         else {
@@ -216,18 +216,17 @@ static struct parsed_char_constant parse_char_constant(struct str_view char_cons
     };
 }
 
-static int eval_char_constant(struct earley_rule rule) {
-    struct str_view rule_val = rule.rhs.symbols[0].val.terminal.token.name;
-    uchar_vec rule_val_vec;
-    uchar_vec_init(&rule_val_vec, 0);
+static int eval_char_constant(const struct earley_rule rule) {
+    const struct str_view rule_val = rule.rhs.symbols[0].val.terminal.token.name;
+    uchar_vec rule_val_vec = uchar_vec_new(0);
     uchar_vec_append_all_arr(&rule_val_vec, rule_val.chars, rule_val.n);
-    struct parsed_char_constant parse = parse_char_constant((struct str_view) { .chars = rule_val_vec.arr, .n = rule_val_vec.n_elements });
+    const struct parsed_char_constant parse = parse_char_constant((struct str_view) { .chars = rule_val_vec.arr, .n = rule_val_vec.n_elements });
 
     int out = 0;
     size_t current_byte = 0;
     for (ssize_t i = (ssize_t)parse.n_c_chars - 1; i >= 0; i--) {
         if (parse.c_chars[i].chars[0] != '\\') {
-            unsigned char char_val = get_ascii_value(parse.c_chars[i].chars[0]);
+            const unsigned char char_val = get_ascii_value(parse.c_chars[i].chars[0]);
             if (current_byte + 1 > sizeof(int)) {
                 preprocessor_fatal_error(0, 0, 0, "character constant doesn't fit in an int");
             } else {
@@ -235,8 +234,8 @@ static int eval_char_constant(struct earley_rule rule) {
             }
             current_byte += (parse.is_wide ? 4 : 1);
         } else {
-            int char_val = (int)eval_escape_sequence(parse.c_chars[i], parse.is_wide);
-            unsigned char char_n_bytes = parse.is_wide ? 4 : get_esc_seq_n_bytes(parse.c_chars[i]);
+            const int char_val = (int)eval_escape_sequence(parse.c_chars[i], parse.is_wide);
+            const unsigned char char_n_bytes = parse.is_wide ? 4 : get_esc_seq_n_bytes(parse.c_chars[i]);
             if (current_byte + char_n_bytes > sizeof(int)) {
                 preprocessor_fatal_error(0, 0, 0, "character constant doesn't fit in an int");
             } else {
@@ -257,11 +256,11 @@ struct parsed_int_constant {
     bool is_signed;
 };
 
-static bool is_octal_digit(unsigned char c) {
+static bool is_octal_digit(const unsigned char c) {
     return c >= '0' && c <= '7';
 }
 
-static struct parsed_int_constant parse_int_constant(struct str_view int_constant) {
+static struct parsed_int_constant parse_int_constant(const struct str_view int_constant) {
     enum int_constant_type type;
     struct str_view digits;
     size_t i;
@@ -287,7 +286,7 @@ static struct parsed_int_constant parse_int_constant(struct str_view int_constan
     return (struct parsed_int_constant) { .digits = digits, .type = type, .is_signed = is_signed };
 }
 
-static target_uintmax_t impow(target_uintmax_t base, target_uintmax_t exp) {
+static target_uintmax_t impow(const target_uintmax_t base, const target_uintmax_t exp) {
     target_uintmax_t out = 1;
     for (target_uintmax_t i = 0; i < exp; i++) {
         out *= base;
@@ -295,14 +294,14 @@ static target_uintmax_t impow(target_uintmax_t base, target_uintmax_t exp) {
     return out;
 }
 
-static struct maybe_signed_intmax eval_int_constant(struct earley_rule rule) {
-    struct str_view rule_val = rule.rhs.symbols[0].val.terminal.token.name;
-    struct parsed_int_constant parse = parse_int_constant(rule_val);
+static struct maybe_signed_intmax eval_int_constant(const struct earley_rule rule) {
+    const struct str_view rule_val = rule.rhs.symbols[0].val.terminal.token.name;
+    const struct parsed_int_constant parse = parse_int_constant(rule_val);
     target_uintmax_t result = 0;
     for (size_t i = 0; i < parse.digits.n; i++) {
         result += (target_uintmax_t)get_hex_digit_value(parse.digits.chars[i]) * impow(10, parse.digits.n - i - 1);
     }
-    print_with_color(TEXT_COLOR_LIGHT_RED, "int constant evalutes to %llu\n", result);
+    print_with_color(TEXT_COLOR_LIGHT_RED, "int constant evalutes to %" PRIuMAX "\n", result);
     if (!parse.is_signed || result > impow(2, sizeof(target_intmax_t)*8 - 1) - 1) {
         return (struct maybe_signed_intmax) { .is_signed = true, .val.unsignd = result };
     } else {
@@ -310,7 +309,7 @@ static struct maybe_signed_intmax eval_int_constant(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_constant(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_constant(const struct earley_rule rule) {
     switch ((enum constant_tag)rule.rhs.tag) {
         case CONSTANT_INTEGER:
             return eval_int_constant(*rule.completed_from.arr[0]);
@@ -319,7 +318,7 @@ static struct maybe_signed_intmax eval_constant(struct earley_rule rule) {
         case CONSTANT_ENUM:
             preprocessor_fatal_error(0, 0, 0, "enum constant should have been replaced with 0");
         case CONSTANT_CHARACTER: {
-            int val = eval_char_constant(*rule.completed_from.arr[0]);
+            const int val = eval_char_constant(*rule.completed_from.arr[0]);
             print_with_color(TEXT_COLOR_LIGHT_RED, "char constant evaluates to 0x%X\n", val);
             return msi_s(val);
         }
@@ -327,7 +326,7 @@ static struct maybe_signed_intmax eval_constant(struct earley_rule rule) {
 }
 
 static struct maybe_signed_intmax eval_cond_expr(struct earley_rule rule);
-static struct maybe_signed_intmax eval_assignment_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_assignment_expr(const struct earley_rule rule) {
     switch ((enum assignment_expr_tag)rule.rhs.tag) {
         case ASSIGNMENT_EXPR_CONDITIONAL:
             return eval_cond_expr(*rule.completed_from.arr[0]);
@@ -336,7 +335,7 @@ static struct maybe_signed_intmax eval_assignment_expr(struct earley_rule rule) 
     }
 }
 
-static struct maybe_signed_intmax eval_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_expr(const struct earley_rule rule) {
     switch((enum list_rule_tag)rule.rhs.tag) {
         case LIST_RULE_ONE:
             return eval_assignment_expr(*rule.completed_from.arr[0]);
@@ -345,7 +344,7 @@ static struct maybe_signed_intmax eval_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_primary_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_primary_expr(const struct earley_rule rule) {
     switch ((enum primary_expr_tag)rule.rhs.tag) {
         case PRIMARY_EXPR_IDENTIFIER:
             preprocessor_fatal_error(0, 0, 0, "identifier should have been replaced with 0");
@@ -358,7 +357,7 @@ static struct maybe_signed_intmax eval_primary_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_postfix_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_postfix_expr(const struct earley_rule rule) {
     switch ((enum postfix_expr_tag)rule.rhs.tag) {
         case POSTFIX_EXPR_PRIMARY:
             return eval_primary_expr(*rule.completed_from.arr[0]);
@@ -374,14 +373,14 @@ static struct maybe_signed_intmax eval_postfix_expr(struct earley_rule rule) {
 }
 
 static struct maybe_signed_intmax eval_cast_expr(struct earley_rule rule);
-static struct maybe_signed_intmax eval_unary_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_unary_expr(const struct earley_rule rule) {
     switch((enum unary_expr_tag)rule.rhs.tag) {
         case UNARY_EXPR_POSTFIX:
             return eval_postfix_expr(*rule.completed_from.arr[0]);
         case UNARY_EXPR_INC: case UNARY_EXPR_DEC:
             preprocessor_fatal_error(0, 0, 0, "++ and -- aren't allowed in constant expressions");
         case UNARY_EXPR_UNARY_OP: {
-            struct maybe_signed_intmax expr_val = eval_cast_expr(*rule.completed_from.arr[1]);
+            const struct maybe_signed_intmax expr_val = eval_cast_expr(*rule.completed_from.arr[1]);
             switch ((enum unary_operator_tag)rule.completed_from.arr[0]->rhs.tag) {
                 case UNARY_OPERATOR_PLUS:
                     if (expr_val.is_signed) return msi_s(+expr_val.val.signd);
@@ -407,7 +406,7 @@ static struct maybe_signed_intmax eval_unary_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_cast_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_cast_expr(const struct earley_rule rule) {
     switch ((enum cast_expr_tag)rule.rhs.tag) {
         case CAST_EXPR_UNARY:
             return eval_unary_expr(*rule.completed_from.arr[0]);
@@ -420,7 +419,7 @@ static struct maybe_signed_intmax eval_cast_expr(struct earley_rule rule) {
 #pragma clang diagnostic ignored "-Wsign-compare"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wsign-conversion"
-static struct maybe_signed_intmax eval_mult_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_mult_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == MULTIPLICATIVE_EXPR_CAST) {
         return eval_cast_expr(*rule.completed_from.arr[0]);
     } else if (rule.rhs.tag == MULTIPLICATIVE_EXPR_MULT) {
@@ -434,7 +433,7 @@ static struct maybe_signed_intmax eval_mult_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_add_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_add_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == ADDITIVE_EXPR_MULT) {
         return eval_mult_expr(*rule.completed_from.arr[0]);
     } else if (rule.rhs.tag == ADDITIVE_EXPR_PLUS) {
@@ -446,7 +445,7 @@ static struct maybe_signed_intmax eval_add_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_shift_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_shift_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == SHIFT_EXPR_ADDITIVE) {
         return eval_add_expr(*rule.completed_from.arr[0]);
     } else if (rule.rhs.tag == SHIFT_EXPR_LEFT) {
@@ -458,7 +457,7 @@ static struct maybe_signed_intmax eval_shift_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_rel_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_rel_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == RELATIONAL_EXPR_SHIFT) {
         return eval_shift_expr(*rule.completed_from.arr[0]);
     } else if (rule.rhs.tag == RELATIONAL_EXPR_LESS) {
@@ -474,7 +473,7 @@ static struct maybe_signed_intmax eval_rel_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_eq_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_eq_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == EQUALITY_EXPR_RELATIONAL) {
         return eval_rel_expr(*rule.completed_from.arr[0]);
     } else if (rule.rhs.tag == EQUALITY_EXPR_EQUAL) {
@@ -486,7 +485,7 @@ static struct maybe_signed_intmax eval_eq_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_and_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_and_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == AND_EXPR_EQUALITY) {
         return eval_eq_expr(*rule.completed_from.arr[0]);
     } else if (rule.rhs.tag == AND_EXPR_NORMAL) {
@@ -496,7 +495,7 @@ static struct maybe_signed_intmax eval_and_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_eor_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_eor_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == EXCLUSIVE_OR_EXPR_AND) {
         return eval_and_expr(*rule.completed_from.arr[0]);
     } else if (rule.rhs.tag == EXCLUSIVE_OR_EXPR_NORMAL) {
@@ -506,7 +505,7 @@ static struct maybe_signed_intmax eval_eor_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_ior_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_ior_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == INCLUSIVE_OR_EXPR_EXCLUSIVE_OR) {
         return eval_eor_expr(*rule.completed_from.arr[0]);
     } else if (rule.rhs.tag == INCLUSIVE_OR_EXPR_NORMAL) {
@@ -516,7 +515,7 @@ static struct maybe_signed_intmax eval_ior_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_land_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_land_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == LOGICAL_AND_EXPR_INCLUSIVE_OR) {
         return eval_ior_expr(*rule.completed_from.arr[0]);
     } else if (rule.rhs.tag == LOGICAL_AND_EXPR_NORMAL) {
@@ -526,7 +525,7 @@ static struct maybe_signed_intmax eval_land_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_lor_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_lor_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == LOGICAL_OR_EXPR_LOGICAL_AND) {
         return eval_land_expr(*rule.completed_from.arr[0]);
     } else if (rule.rhs.tag == LOGICAL_OR_EXPR_NORMAL) {
@@ -537,16 +536,16 @@ static struct maybe_signed_intmax eval_lor_expr(struct earley_rule rule) {
 }
 #pragma clang diagnostic pop
 
-static bool msi_is_nonzero(struct maybe_signed_intmax msi) {
+static bool msi_is_nonzero(const struct maybe_signed_intmax msi) {
     return (msi.is_signed && msi.val.signd != 0) || (!msi.is_signed && msi.val.unsignd != 0);
 }
 
-static struct maybe_signed_intmax eval_cond_expr(struct earley_rule rule) {
+static struct maybe_signed_intmax eval_cond_expr(const struct earley_rule rule) {
     switch ((enum cond_expr_tag)rule.rhs.tag) {
         case COND_EXPR_LOGICAL_OR:
             return eval_lor_expr(*rule.completed_from.arr[0]);
         case COND_EXPR_NORMAL: {
-            struct maybe_signed_intmax condition_result = eval_lor_expr(*rule.completed_from.arr[0]);
+            const struct maybe_signed_intmax condition_result = eval_lor_expr(*rule.completed_from.arr[0]);
             if (msi_is_nonzero(condition_result)) {
                 return eval_expr(*rule.completed_from.arr[1]);
             } else {
@@ -556,20 +555,14 @@ static struct maybe_signed_intmax eval_cond_expr(struct earley_rule rule) {
     }
 }
 
-static struct maybe_signed_intmax eval_int_const_expr(struct earley_rule constant_expression_rule) {
-    struct maybe_signed_intmax out = eval_cond_expr(*constant_expression_rule.completed_from.arr[0]);
-    if (out.is_signed) {
-        print_with_color(TEXT_COLOR_LIGHT_RED, "constant expression evaluates to %jd\n", out.val.signd);
-    } else {
-        print_with_color(TEXT_COLOR_LIGHT_RED, "constant expression evaluates to %ju\n", out.val.unsignd);
-    }
-    return out;
+static struct maybe_signed_intmax eval_int_const_expr(const struct earley_rule constant_expression_rule) {
+    return eval_cond_expr(*constant_expression_rule.completed_from.arr[0]);
 }
 
-struct earley_rule *eval_if_section(struct earley_rule if_section_rule) {
-    struct earley_rule if_group_rule = *if_section_rule.completed_from.arr[0];
-    struct earley_rule expr_rule = *if_group_rule.completed_from.arr[0];
-    struct maybe_signed_intmax expr_val = eval_int_const_expr(expr_rule);
+struct earley_rule *eval_if_section(const struct earley_rule if_section_rule) {
+    const struct earley_rule if_group_rule = *if_section_rule.completed_from.arr[0];
+    const struct earley_rule expr_rule = *if_group_rule.completed_from.arr[0];
+    const struct maybe_signed_intmax expr_val = eval_int_const_expr(expr_rule);
     if (msi_is_nonzero(expr_val)) {
         struct earley_rule *group_opt_rule = if_group_rule.completed_from.arr[1];
         return group_opt_rule;

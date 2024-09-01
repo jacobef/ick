@@ -1,6 +1,6 @@
 ## ick - the Imacculate C Kompiler
-Currently just does trigraphs and tokenization.
-Hopefully the preprocessor will be complete in a few months.
+
+Currently just does trigraphs and tokenization. The preprocessor is ~70% complete but not usable yet.
 
 ### Building (only on Linux/macOS/WSL)
 
