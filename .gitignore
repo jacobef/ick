@@ -3,3 +3,5 @@ cmake-build-debug/
 .idea/
 .cache/
 .vscode/
+.fleet/
+.DS_Store
