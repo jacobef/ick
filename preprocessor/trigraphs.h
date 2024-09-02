@@ -4,6 +4,6 @@
 #include "sized_str.h"
 #include <stddef.h>
 
-struct str_view replace_trigraphs(struct str_view input);
+struct str_view replace_trigraphs(struct str_view in);
 
 #endif //ICK_TRIGRAPHS_H
