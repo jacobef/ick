@@ -16,6 +16,7 @@ set(SOURCE_FILES
         preprocessor/conditional_inclusion.c
         preprocessor/conditional_inclusion.h
         mappings/typedefs.h
+        data_structures/heap_arr.h
 )
 
 project(ick C)

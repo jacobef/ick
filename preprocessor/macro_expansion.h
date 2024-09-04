@@ -5,6 +5,7 @@
 #include "preprocessor/pp_token.h"
 #include "preprocessor/parser.h"
 #include "data_structures/map.h"
+#include "data_structures/heap_arr.h"
 
 
 struct macro_args_and_body {

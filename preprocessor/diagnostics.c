@@ -40,12 +40,12 @@ void preprocessor_warning(const size_t line, const size_t first_char, const size
 
 static size_t original_index(size_t index, size_t_vec trigraph_indices, size_t_vec escaped_newline_indices) {
     // Get the index from before the escaped newlines were replaced
-    for (size_t i = 0; i < escaped_newline_indices.n_elements; i++) {
-        if (escaped_newline_indices.arr[i] <= index) index += 2;
+    for (size_t i = 0; i < escaped_newline_indices.arr.len; i++) {
+        if (escaped_newline_indices.arr.data[i] <= index) index += 2;
     }
     // Get the index from before the trigraphs were replaced
-    for (size_t i = 0; i < trigraph_indices.n_elements; i++) {
-        if (trigraph_indices.arr[i] <= index) index += 2;
+    for (size_t i = 0; i < trigraph_indices.arr.len; i++) {
+        if (trigraph_indices.arr.data[i] <= index) index += 2;
     }
     return index;
 }

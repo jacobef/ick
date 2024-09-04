@@ -5,11 +5,11 @@
 #include <stddef.h>
 #include "debug/reminder.h"
 #include "debug/malloc.h"
+#include "data_structures/heap_arr.h"
 
 #define DEFINE_VEC_TYPE(_type) \
 typedef struct _type##_vec {   \
-    _type *arr;                \
-    size_t n_elements;         \
+    HARR(_type) arr;           \
     size_t capacity;           \
 } _type##_vec;
 
@@ -19,29 +19,28 @@ static _type##_vec _type##_vec_new(size_t capacity) { \
     REMEMBER("free " #_type " vector internals");     \
     if (capacity == 0) capacity = 1;                  \
     return (struct _type##_vec) {                     \
-        .arr = MALLOC(capacity*sizeof(_type)),        \
-        .n_elements = 0,                              \
+        .arr = { .data = MALLOC(capacity * sizeof(_type)), .len = 0 }, \
         .capacity = capacity                          \
     };                                                \
 }
 
-#define DEFINE_VEC_APPEND_FUNCTION(_type)                                       \
-__attribute__((unused))                                                         \
-static void _type##_vec_append(_type##_vec *const vec_p, const _type element) { \
-    if (vec_p->n_elements == vec_p->capacity) {                                 \
-        vec_p->arr = REALLOC(vec_p->arr, vec_p->capacity*2 * sizeof(_type));    \
-        vec_p->capacity *= 2;                                                   \
-    }                                                                           \
-    vec_p->arr[vec_p->n_elements] = element;                                    \
-    vec_p->n_elements++;                                                        \
+#define DEFINE_VEC_APPEND_FUNCTION(_type)                                         \
+__attribute__((unused))                                                           \
+static void _type##_vec_append(_type##_vec *const vec_p, const _type element) {   \
+    if (vec_p->arr.len == vec_p->capacity) {                                      \
+        vec_p->arr.data = REALLOC(vec_p->arr.data, vec_p->capacity * 2 * sizeof(_type)); \
+        vec_p->capacity *= 2;                                                     \
+    }                                                                             \
+    vec_p->arr.data[vec_p->arr.len] = element;                                    \
+    vec_p->arr.len++;                                                             \
 }
 
 // TODO make efficient
 #define DEFINE_VEC_APPEND_ALL_FUNCTION(_type)                                        \
 __attribute__((unused))                                                              \
 static void _type##_vec_append_all(_type##_vec *const dest, const _type##_vec src) { \
-    for (size_t i = 0; i < src.n_elements; i++) {                                    \
-        _type##_vec_append(dest, src.arr[i]);                                        \
+    for (size_t i = 0; i < src.arr.len; i++) {                                       \
+        _type##_vec_append(dest, src.arr.data[i]);                                   \
     }                                                                                \
 }
 
@@ -73,7 +72,7 @@ static _type##_vec _type##_vec_copy_from_arr(const _type *const arr, const size_
 #define DEFINE_VEC_FREE_INTERNALS_FUNCTION(_type)                        \
 __attribute__((unused))                                                  \
 static void _type##_vec_free_internals(const _type##_vec *const vec_p) { \
-    FREE(vec_p->arr);                                                    \
+    FREE(vec_p->arr.data);                                               \
     REMEMBERED_TO("free " #_type " vector internals");                   \
 }
 

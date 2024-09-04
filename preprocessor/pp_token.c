@@ -405,12 +405,12 @@ bool token_is_str(const struct preprocessing_token token, const char *const str)
 }
 
 static bool in_include_directive(const pp_token_vec tokens) {
-    const bool at_beginning_of_file = tokens.n_elements == 2;
-    const bool after_hashtag_include = tokens.n_elements >= 2
-                                        && token_is_str(tokens.arr[tokens.n_elements - 2], "#")
-                                        && token_is_str(tokens.arr[tokens.n_elements - 1], "include");
-    const bool hashtag_after_newline = tokens.n_elements >= 3
-                                        && token_is_str(tokens.arr[tokens.n_elements - 3], "\n");
+    const bool at_beginning_of_file = tokens.arr.len == 2;
+    const bool after_hashtag_include = tokens.arr.len >= 2
+                                        && token_is_str(tokens.arr.data[tokens.arr.len - 2], "#")
+                                        && token_is_str(tokens.arr.data[tokens.arr.len - 1], "include");
+    const bool hashtag_after_newline = tokens.arr.len >= 3
+                                        && token_is_str(tokens.arr.data[tokens.arr.len - 3], "\n");
     return after_hashtag_include && (at_beginning_of_file || hashtag_after_newline);
 }
 
@@ -475,7 +475,7 @@ pp_token_vec get_pp_tokens(const struct str_view input) {
         if (token_detector.status == MATCH) {
             match_exists = true;
             const bool after_actual_whitespace = token_start != 0 && isspace(input.chars[token_start-1]);
-            const bool after_comment = tokens.n_elements > 0 && tokens.arr[tokens.n_elements - 1].type == COMMENT;
+            const bool after_comment = tokens.arr.len > 0 && tokens.arr.data[tokens.arr.len - 1].type == COMMENT;
             token_at_most_recent_match = (struct preprocessing_token) {
                 .after_whitespace = after_actual_whitespace || after_comment,
                 .name = { .chars = &input.chars[token_start], .n = i-token_start + 1 },
@@ -503,10 +503,10 @@ pp_token_vec get_pp_tokens(const struct str_view input) {
     }
 
     // Remove the comments
-    pp_token_vec tokens_without_comments = pp_token_vec_new(tokens.n_elements);
-    for (size_t i = 0; i < tokens.n_elements; i++) {
-        if (tokens.arr[i].type != COMMENT) {
-            pp_token_vec_append(&tokens_without_comments, tokens.arr[i]);
+    pp_token_vec tokens_without_comments = pp_token_vec_new(tokens.arr.len);
+    for (size_t i = 0; i < tokens.arr.len; i++) {
+        if (tokens.arr.data[i].type != COMMENT) {
+            pp_token_vec_append(&tokens_without_comments, tokens.arr.data[i]);
         }
     }
     pp_token_vec_free_internals(&tokens);
@@ -518,8 +518,8 @@ pp_token_vec get_pp_tokens(const struct str_view input) {
 
 void print_tokens(const pp_token_vec tokens, const bool verbose) {
     if (verbose) {
-        for (size_t i = 0; i < tokens.n_elements; i++) {
-            const struct preprocessing_token token = tokens.arr[i];
+        for (size_t i = 0; i < tokens.arr.len; i++) {
+            const struct preprocessing_token token = tokens.arr.data[i];
             for (size_t j = 0; j < token.name.n; j++) {
                 if (token.name.chars[j] == '\n') {
                     printf("[newline]");
@@ -542,8 +542,8 @@ void print_tokens(const pp_token_vec tokens, const bool verbose) {
     }
 
     // print normally
-    for (size_t i = 0; i < tokens.n_elements; i++) {
-        const struct preprocessing_token token = tokens.arr[i];
+    for (size_t i = 0; i < tokens.arr.len; i++) {
+        const struct preprocessing_token token = tokens.arr.data[i];
         if (token.after_whitespace) printf(" ");
         for (size_t j = 0; j < token.name.n; j++) {
             printf("%c", token.name.chars[j]);

@@ -212,7 +212,7 @@ static struct parsed_char_constant parse_char_constant(const struct str_view cha
         }
     }
     return (struct parsed_char_constant) {
-        .c_chars = c_chars.arr, .n_c_chars = c_chars.n_elements, .is_wide = is_wide
+        .c_chars = c_chars.arr.data, .n_c_chars = c_chars.arr.len, .is_wide = is_wide
     };
 }
 
@@ -220,7 +220,7 @@ static int eval_char_constant(const struct earley_rule rule) {
     const struct str_view rule_val = rule.rhs.symbols[0].val.terminal.token.name;
     uchar_vec rule_val_vec = uchar_vec_new(0);
     uchar_vec_append_all_arr(&rule_val_vec, rule_val.chars, rule_val.n);
-    const struct parsed_char_constant parse = parse_char_constant((struct str_view) { .chars = rule_val_vec.arr, .n = rule_val_vec.n_elements });
+    const struct parsed_char_constant parse = parse_char_constant((struct str_view) { .chars = rule_val_vec.arr.data, .n = rule_val_vec.arr.len });
 
     int out = 0;
     size_t current_byte = 0;
@@ -312,13 +312,13 @@ static struct maybe_signed_intmax eval_int_constant(const struct earley_rule rul
 static struct maybe_signed_intmax eval_constant(const struct earley_rule rule) {
     switch ((enum constant_tag)rule.rhs.tag) {
         case CONSTANT_INTEGER:
-            return eval_int_constant(*rule.completed_from.arr[0]);
+            return eval_int_constant(*rule.completed_from.arr.data[0]);
         case CONSTANT_FLOAT:
             preprocessor_fatal_error(0, 0, 0, "preprocessor constant expressions must be integer expressions");
         case CONSTANT_ENUM:
             preprocessor_fatal_error(0, 0, 0, "enum constant should have been replaced with 0");
         case CONSTANT_CHARACTER: {
-            const int val = eval_char_constant(*rule.completed_from.arr[0]);
+            const int val = eval_char_constant(*rule.completed_from.arr.data[0]);
             print_with_color(TEXT_COLOR_LIGHT_RED, "char constant evaluates to 0x%X\n", val);
             return msi_s(val);
         }
@@ -329,7 +329,7 @@ static struct maybe_signed_intmax eval_cond_expr(struct earley_rule rule);
 static struct maybe_signed_intmax eval_assignment_expr(const struct earley_rule rule) {
     switch ((enum assignment_expr_tag)rule.rhs.tag) {
         case ASSIGNMENT_EXPR_CONDITIONAL:
-            return eval_cond_expr(*rule.completed_from.arr[0]);
+            return eval_cond_expr(*rule.completed_from.arr.data[0]);
         case ASSIGNMENT_EXPR_NORMAL:
             preprocessor_fatal_error(0, 0, 0, "assignment not allowed in preprocessor constant expression");
     }
@@ -338,7 +338,7 @@ static struct maybe_signed_intmax eval_assignment_expr(const struct earley_rule 
 static struct maybe_signed_intmax eval_expr(const struct earley_rule rule) {
     switch((enum list_rule_tag)rule.rhs.tag) {
         case LIST_RULE_ONE:
-            return eval_assignment_expr(*rule.completed_from.arr[0]);
+            return eval_assignment_expr(*rule.completed_from.arr.data[0]);
         case LIST_RULE_MULTI:
             preprocessor_fatal_error(0, 0, 0, "commas not allowed in preprocessor constant expression");
     }
@@ -349,18 +349,18 @@ static struct maybe_signed_intmax eval_primary_expr(const struct earley_rule rul
         case PRIMARY_EXPR_IDENTIFIER:
             preprocessor_fatal_error(0, 0, 0, "identifier should have been replaced with 0");
         case PRIMARY_EXPR_CONSTANT:
-            return eval_constant(*rule.completed_from.arr[0]);
+            return eval_constant(*rule.completed_from.arr.data[0]);
         case PRIMARY_EXPR_STRING:
             preprocessor_fatal_error(0, 0, 0, "string literals aren't allowed in a preprocessor constant expression");
         case PRIMARY_EXPR_PARENS:
-            return eval_expr(*rule.completed_from.arr[0]);
+            return eval_expr(*rule.completed_from.arr.data[0]);
     }
 }
 
 static struct maybe_signed_intmax eval_postfix_expr(const struct earley_rule rule) {
     switch ((enum postfix_expr_tag)rule.rhs.tag) {
         case POSTFIX_EXPR_PRIMARY:
-            return eval_primary_expr(*rule.completed_from.arr[0]);
+            return eval_primary_expr(*rule.completed_from.arr.data[0]);
         case POSTFIX_EXPR_ARRAY_ACCESS:
         case POSTFIX_EXPR_FUNC:
         case POSTFIX_EXPR_DOT:
@@ -376,12 +376,12 @@ static struct maybe_signed_intmax eval_cast_expr(struct earley_rule rule);
 static struct maybe_signed_intmax eval_unary_expr(const struct earley_rule rule) {
     switch((enum unary_expr_tag)rule.rhs.tag) {
         case UNARY_EXPR_POSTFIX:
-            return eval_postfix_expr(*rule.completed_from.arr[0]);
+            return eval_postfix_expr(*rule.completed_from.arr.data[0]);
         case UNARY_EXPR_INC: case UNARY_EXPR_DEC:
             preprocessor_fatal_error(0, 0, 0, "++ and -- aren't allowed in constant expressions");
         case UNARY_EXPR_UNARY_OP: {
-            const struct maybe_signed_intmax expr_val = eval_cast_expr(*rule.completed_from.arr[1]);
-            switch ((enum unary_operator_tag)rule.completed_from.arr[0]->rhs.tag) {
+            const struct maybe_signed_intmax expr_val = eval_cast_expr(*rule.completed_from.arr.data[1]);
+            switch ((enum unary_operator_tag)rule.completed_from.arr.data[0]->rhs.tag) {
                 case UNARY_OPERATOR_PLUS:
                     if (expr_val.is_signed) return msi_s(+expr_val.val.signd);
                     else return msi_u(+expr_val.val.unsignd);
@@ -409,7 +409,7 @@ static struct maybe_signed_intmax eval_unary_expr(const struct earley_rule rule)
 static struct maybe_signed_intmax eval_cast_expr(const struct earley_rule rule) {
     switch ((enum cast_expr_tag)rule.rhs.tag) {
         case CAST_EXPR_UNARY:
-            return eval_unary_expr(*rule.completed_from.arr[0]);
+            return eval_unary_expr(*rule.completed_from.arr.data[0]);
         case CAST_EXPR_NORMAL:
             preprocessor_fatal_error(0, 0, 0, "cast expressions aren't allowed in constant expressions");
     }
@@ -421,13 +421,13 @@ static struct maybe_signed_intmax eval_cast_expr(const struct earley_rule rule) 
 #pragma clang diagnostic ignored "-Wsign-conversion"
 static struct maybe_signed_intmax eval_mult_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == MULTIPLICATIVE_EXPR_CAST) {
-        return eval_cast_expr(*rule.completed_from.arr[0]);
+        return eval_cast_expr(*rule.completed_from.arr.data[0]);
     } else if (rule.rhs.tag == MULTIPLICATIVE_EXPR_MULT) {
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_mult_expr(*rule.completed_from.arr[0]), eval_cast_expr(*rule.completed_from.arr[1]), *);
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_mult_expr(*rule.completed_from.arr.data[0]), eval_cast_expr(*rule.completed_from.arr.data[1]), *);
     } else if (rule.rhs.tag == MULTIPLICATIVE_EXPR_DIV) {
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_mult_expr(*rule.completed_from.arr[0]), eval_cast_expr(*rule.completed_from.arr[1]), /);
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_mult_expr(*rule.completed_from.arr.data[0]), eval_cast_expr(*rule.completed_from.arr.data[1]), /);
     } else if (rule.rhs.tag == MULTIPLICATIVE_EXPR_MOD) {
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_mult_expr(*rule.completed_from.arr[0]), eval_cast_expr(*rule.completed_from.arr[1]), %);
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_mult_expr(*rule.completed_from.arr.data[0]), eval_cast_expr(*rule.completed_from.arr.data[1]), %);
     } else {
         preprocessor_fatal_error(0, 0, 0, "Multiplicative expression tag is not recognized");
     }
@@ -435,11 +435,11 @@ static struct maybe_signed_intmax eval_mult_expr(const struct earley_rule rule) 
 
 static struct maybe_signed_intmax eval_add_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == ADDITIVE_EXPR_MULT) {
-        return eval_mult_expr(*rule.completed_from.arr[0]);
+        return eval_mult_expr(*rule.completed_from.arr.data[0]);
     } else if (rule.rhs.tag == ADDITIVE_EXPR_PLUS) {
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_add_expr(*rule.completed_from.arr[0]), eval_mult_expr(*rule.completed_from.arr[1]), +);
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_add_expr(*rule.completed_from.arr.data[0]), eval_mult_expr(*rule.completed_from.arr.data[1]), +);
     } else if (rule.rhs.tag == ADDITIVE_EXPR_MINUS) {
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_add_expr(*rule.completed_from.arr[0]), eval_mult_expr(*rule.completed_from.arr[1]), -);
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_add_expr(*rule.completed_from.arr.data[0]), eval_mult_expr(*rule.completed_from.arr.data[1]), -);
     } else {
         preprocessor_fatal_error(0, 0, 0, "Additive expression tag is not recognized");
     }
@@ -447,11 +447,11 @@ static struct maybe_signed_intmax eval_add_expr(const struct earley_rule rule) {
 
 static struct maybe_signed_intmax eval_shift_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == SHIFT_EXPR_ADDITIVE) {
-        return eval_add_expr(*rule.completed_from.arr[0]);
+        return eval_add_expr(*rule.completed_from.arr.data[0]);
     } else if (rule.rhs.tag == SHIFT_EXPR_LEFT) {
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_shift_expr(*rule.completed_from.arr[0]), eval_add_expr(*rule.completed_from.arr[1]), <<);
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_shift_expr(*rule.completed_from.arr.data[0]), eval_add_expr(*rule.completed_from.arr.data[1]), <<);
     } else if (rule.rhs.tag == SHIFT_EXPR_RIGHT) {
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_shift_expr(*rule.completed_from.arr[0]), eval_add_expr(*rule.completed_from.arr[1]), >>);
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_shift_expr(*rule.completed_from.arr.data[0]), eval_add_expr(*rule.completed_from.arr.data[1]), >>);
     } else {
         preprocessor_fatal_error(0, 0, 0, "Shift expression tag is not recognized");
     }
@@ -459,15 +459,15 @@ static struct maybe_signed_intmax eval_shift_expr(const struct earley_rule rule)
 
 static struct maybe_signed_intmax eval_rel_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == RELATIONAL_EXPR_SHIFT) {
-        return eval_shift_expr(*rule.completed_from.arr[0]);
+        return eval_shift_expr(*rule.completed_from.arr.data[0]);
     } else if (rule.rhs.tag == RELATIONAL_EXPR_LESS) {
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_rel_expr(*rule.completed_from.arr[0]), eval_shift_expr(*rule.completed_from.arr[1]), <);
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_rel_expr(*rule.completed_from.arr.data[0]), eval_shift_expr(*rule.completed_from.arr.data[1]), <);
     } else if (rule.rhs.tag == RELATIONAL_EXPR_GREATER) {
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_rel_expr(*rule.completed_from.arr[0]), eval_shift_expr(*rule.completed_from.arr[1]), >);
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_rel_expr(*rule.completed_from.arr.data[0]), eval_shift_expr(*rule.completed_from.arr.data[1]), >);
     } else if (rule.rhs.tag == RELATIONAL_EXPR_LEQ) {
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_rel_expr(*rule.completed_from.arr[0]), eval_shift_expr(*rule.completed_from.arr[1]), <=);
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_rel_expr(*rule.completed_from.arr.data[0]), eval_shift_expr(*rule.completed_from.arr.data[1]), <=);
     } else if (rule.rhs.tag == RELATIONAL_EXPR_GEQ) {
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_rel_expr(*rule.completed_from.arr[0]), eval_shift_expr(*rule.completed_from.arr[1]), >=);
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_rel_expr(*rule.completed_from.arr.data[0]), eval_shift_expr(*rule.completed_from.arr.data[1]), >=);
     } else {
         preprocessor_fatal_error(0, 0, 0, "Relational expression tag is not recognized");
     }
@@ -475,11 +475,11 @@ static struct maybe_signed_intmax eval_rel_expr(const struct earley_rule rule) {
 
 static struct maybe_signed_intmax eval_eq_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == EQUALITY_EXPR_RELATIONAL) {
-        return eval_rel_expr(*rule.completed_from.arr[0]);
+        return eval_rel_expr(*rule.completed_from.arr.data[0]);
     } else if (rule.rhs.tag == EQUALITY_EXPR_EQUAL) {
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_eq_expr(*rule.completed_from.arr[0]), eval_rel_expr(*rule.completed_from.arr[1]), ==);
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_eq_expr(*rule.completed_from.arr.data[0]), eval_rel_expr(*rule.completed_from.arr.data[1]), ==);
     } else if (rule.rhs.tag == EQUALITY_EXPR_NOT_EQUAL) {
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_eq_expr(*rule.completed_from.arr[0]), eval_rel_expr(*rule.completed_from.arr[1]), !=);
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_eq_expr(*rule.completed_from.arr.data[0]), eval_rel_expr(*rule.completed_from.arr.data[1]), !=);
     } else {
         preprocessor_fatal_error(0, 0, 0, "Equality expression tag is not recognized");
     }
@@ -487,9 +487,9 @@ static struct maybe_signed_intmax eval_eq_expr(const struct earley_rule rule) {
 
 static struct maybe_signed_intmax eval_and_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == AND_EXPR_EQUALITY) {
-        return eval_eq_expr(*rule.completed_from.arr[0]);
+        return eval_eq_expr(*rule.completed_from.arr.data[0]);
     } else if (rule.rhs.tag == AND_EXPR_NORMAL) {
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_and_expr(*rule.completed_from.arr[0]), eval_eq_expr(*rule.completed_from.arr[1]), &);
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_and_expr(*rule.completed_from.arr.data[0]), eval_eq_expr(*rule.completed_from.arr.data[1]), &);
     } else {
         preprocessor_fatal_error(0, 0, 0, "And expression tag is not recognized");
     }
@@ -497,9 +497,9 @@ static struct maybe_signed_intmax eval_and_expr(const struct earley_rule rule) {
 
 static struct maybe_signed_intmax eval_eor_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == EXCLUSIVE_OR_EXPR_AND) {
-        return eval_and_expr(*rule.completed_from.arr[0]);
+        return eval_and_expr(*rule.completed_from.arr.data[0]);
     } else if (rule.rhs.tag == EXCLUSIVE_OR_EXPR_NORMAL) {
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_eor_expr(*rule.completed_from.arr[0]), eval_and_expr(*rule.completed_from.arr[1]), ^);
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_eor_expr(*rule.completed_from.arr.data[0]), eval_and_expr(*rule.completed_from.arr.data[1]), ^);
     } else {
         preprocessor_fatal_error(0, 0, 0, "Exclusive or expression tag is not recognized");
     }
@@ -507,9 +507,9 @@ static struct maybe_signed_intmax eval_eor_expr(const struct earley_rule rule) {
 
 static struct maybe_signed_intmax eval_ior_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == INCLUSIVE_OR_EXPR_EXCLUSIVE_OR) {
-        return eval_eor_expr(*rule.completed_from.arr[0]);
+        return eval_eor_expr(*rule.completed_from.arr.data[0]);
     } else if (rule.rhs.tag == INCLUSIVE_OR_EXPR_NORMAL) {
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_ior_expr(*rule.completed_from.arr[0]), eval_eor_expr(*rule.completed_from.arr[1]), |);
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_ior_expr(*rule.completed_from.arr.data[0]), eval_eor_expr(*rule.completed_from.arr.data[1]), |);
     } else {
         preprocessor_fatal_error(0, 0, 0, "Inclusive or expression tag is not recognized");
     }
@@ -517,9 +517,9 @@ static struct maybe_signed_intmax eval_ior_expr(const struct earley_rule rule) {
 
 static struct maybe_signed_intmax eval_land_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == LOGICAL_AND_EXPR_INCLUSIVE_OR) {
-        return eval_ior_expr(*rule.completed_from.arr[0]);
+        return eval_ior_expr(*rule.completed_from.arr.data[0]);
     } else if (rule.rhs.tag == LOGICAL_AND_EXPR_NORMAL) {
-        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_land_expr(*rule.completed_from.arr[0]), eval_ior_expr(*rule.completed_from.arr[1]), &&);
+        MSI_BINARY_OP_RETURN_SIGNED_RESULT(eval_land_expr(*rule.completed_from.arr.data[0]), eval_ior_expr(*rule.completed_from.arr.data[1]), &&);
     } else {
         preprocessor_fatal_error(0, 0, 0, "Logical and expression tag is not recognized");
     }
@@ -527,9 +527,9 @@ static struct maybe_signed_intmax eval_land_expr(const struct earley_rule rule) 
 
 static struct maybe_signed_intmax eval_lor_expr(const struct earley_rule rule) {
     if (rule.rhs.tag == LOGICAL_OR_EXPR_LOGICAL_AND) {
-        return eval_land_expr(*rule.completed_from.arr[0]);
+        return eval_land_expr(*rule.completed_from.arr.data[0]);
     } else if (rule.rhs.tag == LOGICAL_OR_EXPR_NORMAL) {
-        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_lor_expr(*rule.completed_from.arr[0]), eval_land_expr(*rule.completed_from.arr[1]), ||);
+        MSI_BINARY_OP_RETURN_WITH_USUAL_CONVERSIONS(eval_lor_expr(*rule.completed_from.arr.data[0]), eval_land_expr(*rule.completed_from.arr.data[1]), ||);
     } else {
         preprocessor_fatal_error(0, 0, 0, "Logical or expression tag is not recognized");
     }
@@ -543,28 +543,28 @@ static bool msi_is_nonzero(const struct maybe_signed_intmax msi) {
 static struct maybe_signed_intmax eval_cond_expr(const struct earley_rule rule) {
     switch ((enum cond_expr_tag)rule.rhs.tag) {
         case COND_EXPR_LOGICAL_OR:
-            return eval_lor_expr(*rule.completed_from.arr[0]);
+            return eval_lor_expr(*rule.completed_from.arr.data[0]);
         case COND_EXPR_NORMAL: {
-            const struct maybe_signed_intmax condition_result = eval_lor_expr(*rule.completed_from.arr[0]);
+            const struct maybe_signed_intmax condition_result = eval_lor_expr(*rule.completed_from.arr.data[0]);
             if (msi_is_nonzero(condition_result)) {
-                return eval_expr(*rule.completed_from.arr[1]);
+                return eval_expr(*rule.completed_from.arr.data[1]);
             } else {
-                return eval_cond_expr(*rule.completed_from.arr[2]);
+                return eval_cond_expr(*rule.completed_from.arr.data[2]);
             }
         }
     }
 }
 
 static struct maybe_signed_intmax eval_int_const_expr(const struct earley_rule constant_expression_rule) {
-    return eval_cond_expr(*constant_expression_rule.completed_from.arr[0]);
+    return eval_cond_expr(*constant_expression_rule.completed_from.arr.data[0]);
 }
 
 struct earley_rule *eval_if_section(const struct earley_rule if_section_rule) {
-    const struct earley_rule if_group_rule = *if_section_rule.completed_from.arr[0];
-    const struct earley_rule expr_rule = *if_group_rule.completed_from.arr[0];
+    const struct earley_rule if_group_rule = *if_section_rule.completed_from.arr.data[0];
+    const struct earley_rule expr_rule = *if_group_rule.completed_from.arr.data[0];
     const struct maybe_signed_intmax expr_val = eval_int_const_expr(expr_rule);
     if (msi_is_nonzero(expr_val)) {
-        struct earley_rule *group_opt_rule = if_group_rule.completed_from.arr[1];
+        struct earley_rule *group_opt_rule = if_group_rule.completed_from.arr.data[1];
         return group_opt_rule;
     } else {
         return NULL;
