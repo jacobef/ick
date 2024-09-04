@@ -1,10 +1,8 @@
 #ifndef ICK_DATA_STRUCTURES_VECTOR_VECTOR_H
 #define ICK_DATA_STRUCTURES_VECTOR_VECTOR_H
 
-#include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <stddef.h>
 #include "debug/reminder.h"
 #include "debug/malloc.h"
 
@@ -89,6 +87,6 @@ static void _type##_vec_free_internals(const _type##_vec *const vec_p) { \
     DEFINE_VEC_COPY_ARR_FUNCTION(_type)               \
     DEFINE_VEC_FREE_INTERNALS_FUNCTION(_type)         \
 
-DEFINE_VEC_TYPE_AND_FUNCTIONS(int)
+DEFINE_VEC_TYPE_AND_FUNCTIONS(size_t)
 
 #endif // ICK_DATA_STRUCTURES_VECTOR_VECTOR_H

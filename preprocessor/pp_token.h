@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "data_structures/vector.h"
 #include "data_structures/trie.h"
-#include "sized_str.h"
+#include "data_structures/sized_str.h"
 #include "detector.h"
 
 struct header_name_detector {
@@ -115,8 +115,6 @@ struct preprocessing_token_detector {
     struct comment_detector comment_detector;
     enum detection_status status;
     enum detection_status prev_status;
-    bool is_first_char;
-    bool was_first_char;
 };
 enum exclude_from_detection {EXCLUDE_STRING_LITERAL, EXCLUDE_HEADER_NAME};
 

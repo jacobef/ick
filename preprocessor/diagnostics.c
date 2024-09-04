@@ -1,6 +1,7 @@
-#include "diagnostics.h"
 #include <stdarg.h>
 #include <stdlib.h>
+#include "diagnostics.h"
+#include "data_structures/vector.h"
 
 #define VFPRINTF_VAARGS_FOLLOW(_stream, _fmt) \
     va_list args;                             \
@@ -35,4 +36,16 @@ void preprocessor_warning(const size_t line, const size_t first_char, const size
     fprintf(stderr, "warning: ");
     VFPRINTF_VAARGS_FOLLOW(stderr, msg_fmt);
     fprintf(stderr, "\n");
+}
+
+static size_t original_index(size_t index, size_t_vec trigraph_indices, size_t_vec escaped_newline_indices) {
+    // Get the index from before the escaped newlines were replaced
+    for (size_t i = 0; i < escaped_newline_indices.n_elements; i++) {
+        if (escaped_newline_indices.arr[i] <= index) index += 2;
+    }
+    // Get the index from before the trigraphs were replaced
+    for (size_t i = 0; i < trigraph_indices.n_elements; i++) {
+        if (trigraph_indices.arr[i] <= index) index += 2;
+    }
+    return index;
 }

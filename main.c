@@ -3,7 +3,7 @@
 #include "data_structures/vector.h"
 #include "driver/file_utils.h"
 #include "driver/diagnostics.h"
-#include "preprocessor/sized_str.h"
+#include "data_structures/sized_str.h"
 #include "preprocessor/trigraphs.h"
 #include "preprocessor/escaped_newlines.h"
 #include "preprocessor/pp_token.h"
@@ -54,15 +54,15 @@ int main(int argc, char *argv[]) {
     fclose(input_file);
     input_chars[input_len] = '\n'; // too much of a pain without this
 
-    struct str_view trigraphs_replaced = replace_trigraphs(
+    struct trigraph_replacement_info trigraph_replacement = replace_trigraphs(
             (struct str_view){ .chars = input_chars, .n = input_len + 1 }
     );
-    struct str_view logical_lines = rm_escaped_newlines(trigraphs_replaced);
-    fwrite(logical_lines.chars, sizeof(char), logical_lines.n, output_file);
+    struct escaped_newlines_replacement_info logical_lines = rm_escaped_newlines(trigraph_replacement.result);
+    fwrite(logical_lines.result.chars, sizeof(char), logical_lines.result.n, output_file);
 
     fclose(output_file);
 
-    pp_token_vec tokens = get_pp_tokens(logical_lines);
+    pp_token_vec tokens = get_pp_tokens(logical_lines.result);
 //    print_tokens(tokens);
     
     test_parser(tokens);
@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
 
     pp_token_vec_free_internals(&tokens);
     FREE(input_chars);
-    FREE(trigraphs_replaced.chars);
-    FREE(logical_lines.chars);
+    FREE(trigraph_replacement.result.chars);
+    FREE(logical_lines.result.chars);
     FREE(ick_progname);
 }

@@ -5,27 +5,35 @@
 
 #include "debug/malloc.h"
 
-struct str_view rm_escaped_newlines(const struct str_view input) {
-    if (input.n < 2) {
-        unsigned char *out_chars = MALLOC(input.n);
-        memcpy(out_chars, input.chars, input.n);
-        return (struct str_view) { .chars = out_chars, .n = input.n };
+struct escaped_newlines_replacement_info rm_escaped_newlines(const struct str_view in) {
+    size_t_vec backslash_locations = size_t_vec_new(0);
+    if (in.n < 2) {
+        unsigned char *out_chars = MALLOC(in.n);
+        memcpy(out_chars, in.chars, in.n);
+        return (struct escaped_newlines_replacement_info) {
+            .result = { .chars = out_chars, .n = in.n },
+            .backslash_locations = backslash_locations
+        };
     }
-    unsigned char *output_chars = MALLOC(input.n);
-    const unsigned char *reader = input.chars;
-    unsigned char *writer = output_chars;
+    unsigned char *out_chars = MALLOC(in.n);
+    size_t in_i = 0;
+    size_t out_i = 0;
     // The condition is UB if input.n < 2, but the function should've returned before in that case
-    while (reader <= input.chars + input.n - 2) {
-        if (reader[0] == '\\' && reader[1] == '\n') {
-            reader += 2;
+    while (in_i <= in.n - 2) {
+        if (in.chars[in_i] == '\\' && in.chars[in_i+1] == '\n') {
+            size_t_vec_append(&backslash_locations, in_i);
+            in_i += 2;
         }
         else {
-            *writer = *reader;
-            reader++; writer++;
+            out_chars[out_i] = in.chars[in_i];
+            in_i++; out_i++;
         }
     }
-    for (; reader != input.chars + input.n; writer++, reader++) {
-        *writer = *reader;
+    for (; in_i < in.n; in_i++, out_i++) {
+        out_chars[out_i] = in.chars[in_i];
     }
-    return (struct str_view){ .chars = output_chars, .n = (size_t)(writer - output_chars) };
+    return (struct escaped_newlines_replacement_info){
+        .result = { .chars = out_chars, .n = out_i },
+        .backslash_locations = backslash_locations
+    };
 }

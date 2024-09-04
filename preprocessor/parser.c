@@ -364,10 +364,8 @@ static void deal_with_macros(const struct earley_rule root) {
                         break;
                     }
                     case CONTROL_LINE_UNDEF: {
-                        if (!str_view_macro_args_and_body_map_remove(&macros,
-                                                                     control_line_rule.completed_from.arr[0]->rhs.symbols[0].val.terminal.token.name)) {
-                            preprocessor_fatal_error(0, 0, 0, "Can't undefine a macro that doesn't exist");
-                        }
+                        // Removes the macro if it exists; does nothing if it doesn't
+                        str_view_macro_args_and_body_map_remove(&macros, control_line_rule.completed_from.arr[0]->rhs.symbols[0].val.terminal.token.name);
                         break;
                     }
                 }
@@ -403,8 +401,8 @@ void test_parser(const pp_token_vec tokens) {
         printf("No tree to print; parsing failed.\n");
         return;
     }
-    // print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");
-    // print_tree(root, 0);
+    print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");
+    print_tree(root, 0);
     deal_with_macros(*root);
     // print_with_color(TEXT_COLOR_LIGHT_RED, "Full tree:\n");
     // print_tree(root, 0);

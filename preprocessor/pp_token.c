@@ -1,4 +1,6 @@
+// ReSharper disable CppDFAUnreachableCode
 #include <ctype.h>
+#include "detector.h"
 #include "pp_token.h"
 #include "preprocessor/diagnostics.h"
 
@@ -351,19 +353,18 @@ static struct preprocessing_token_detector detect_preprocessing_token(struct pre
 
     detector.prev_status = detector.status;
 
-    if (exclude != EXCLUDE_HEADER_NAME) {
-        detector.header_name_detector = detect_header_name(detector.header_name_detector, c);
-    } else {
+    if (exclude == EXCLUDE_HEADER_NAME) {
+        detector.string_literal_detector = detect_string_literal(detector.string_literal_detector, c);
         detector.header_name_detector.status = IMPOSSIBLE;
+    } else if (exclude == EXCLUDE_STRING_LITERAL) {
+        detector.header_name_detector = detect_header_name(detector.header_name_detector, c);
+        detector.string_literal_detector.status = IMPOSSIBLE;
+    } else {
+        preprocessor_fatal_error(0, 0, 0, "invalid value of exclude parameter in detect_preprocessing_token");
     }
     detector.identifier_detector = detect_identifier(detector.identifier_detector, c);
     detector.pp_number_detector = detect_pp_number(detector.pp_number_detector, c);
     detector.character_constant_detector = detect_character_constant(detector.character_constant_detector, c);
-    if (exclude != EXCLUDE_STRING_LITERAL) {
-        detector.string_literal_detector = detect_string_literal(detector.string_literal_detector, c);
-    } else {
-        detector.string_literal_detector.status = IMPOSSIBLE;
-    }
     detector.punctuator_detector = detect_punctuator(detector.punctuator_detector, c);
     detector.single_char_detector = detect_single_char(detector.single_char_detector, c);
     detector.comment_detector = detect_comment(detector.comment_detector, c);
@@ -380,12 +381,6 @@ static struct preprocessing_token_detector detect_preprocessing_token(struct pre
         detector.status = INCOMPLETE;
     } else {
         detector.status = IMPOSSIBLE;
-    }
-
-    if (detector.was_first_char) detector.was_first_char = false;
-    if (detector.is_first_char) {
-        detector.is_first_char = false;
-        detector.was_first_char = true;
     }
 
     return detector;
@@ -437,9 +432,7 @@ static struct preprocessing_token_detector get_initial_detector(void) {
             .punctuator_detector={.status=INCOMPLETE, .place_in_trie=&punctuators_trie},
             .single_char_detector={.status=INCOMPLETE},
             .comment_detector={.status=INCOMPLETE, .prev_status=INCOMPLETE, .is_multiline=false,
-                    .is_first_char=true, .is_second_char=false, .next_char_invalid=false},
-            .is_first_char=true,
-            .was_first_char=false,
+                    .is_first_char=true, .is_second_char=false, .next_char_invalid=false}
     };
     return initial_detector;
 }
@@ -462,48 +455,54 @@ enum pp_token_type get_token_type_from_str(const struct str_view token, const en
 
 
 pp_token_vec get_pp_tokens(const struct str_view input) {
+    // TODO:
+    // Error on invalid tokens.
+    // Currently, it skips over invalid tokens instead of erroring.
+    // This is fine in C because it only ends up skipping over whitespace (since any single character is a valid token).
+    // But if C was different, then it would skip over invalid tokens, when it should error.
+
     pp_token_vec tokens = pp_token_vec_new(input.n / 3);  // guess 3 chars per token
     bool match_exists = false;
     struct preprocessing_token_detector token_detector = get_initial_detector();
-    struct preprocessing_token_detector detector_at_most_recent_match;
 
-    struct preprocessing_token token; // scary
+    size_t token_start = 0;
     struct preprocessing_token token_at_most_recent_match;
-    for (const unsigned char *char_p = input.chars; char_p != input.chars + input.n; char_p++) {
-        // The token can only be a header name if it's after #include, and it can only be a string literal if it's not
-        // Otherwise, it's ambiguous; most tokens inside double quotes could be either
-        token_detector = detect_preprocessing_token(token_detector, *char_p,
+    for (size_t i = 0; i < input.n; i++) {
+        // The token can't be a string literal if it's after #include, and it can't be a header name if it's not
+        token_detector = detect_preprocessing_token(token_detector, input.chars[i],
                                                     in_include_directive(tokens) ? EXCLUDE_STRING_LITERAL : EXCLUDE_HEADER_NAME);
-        // If this might be the start of a new token, then initialize it
-        if (token_detector.status != IMPOSSIBLE && (token_detector.was_first_char || token_detector.prev_status == IMPOSSIBLE)) {
-            token.name.chars = char_p;
-            const bool after_actual_whitespace = char_p != input.chars && isspace(*(char_p - 1));
-            const bool after_comment = tokens.n_elements > 0 && tokens.arr[tokens.n_elements - 1].type == COMMENT;
-            token.after_whitespace = after_actual_whitespace || after_comment;
-        }
-        // If the token is valid, then indicate that
+        // If the token is valid, then indicate that and set token_at_most_recent_match to the token
         if (token_detector.status == MATCH) {
             match_exists = true;
-            token_at_most_recent_match = token;
-            token_at_most_recent_match.name.n = (size_t)(char_p + 1 - token.name.chars);
-            detector_at_most_recent_match = token_detector;
-        // If the token isn't valid and can't be valid in the future:
+            const bool after_actual_whitespace = token_start != 0 && isspace(input.chars[token_start-1]);
+            const bool after_comment = tokens.n_elements > 0 && tokens.arr[tokens.n_elements - 1].type == COMMENT;
+            token_at_most_recent_match = (struct preprocessing_token) {
+                .after_whitespace = after_actual_whitespace || after_comment,
+                .name = { .chars = &input.chars[token_start], .n = i-token_start + 1 },
+                .type = get_token_type(token_detector)
+            };
         } else if (token_detector.status == IMPOSSIBLE) {
-            // If the token was valid before, then add that valid token
             if (match_exists) {
-                token_at_most_recent_match.type = get_token_type(detector_at_most_recent_match);
+                // If the token was valid before, then add that valid token
                 pp_token_vec_append(&tokens, token_at_most_recent_match);
                 match_exists = false;
-                char_p = token_at_most_recent_match.name.chars + token_at_most_recent_match.name.n - 1;
+                // Set the iterator to right after that token (-1 because char_p gets incremented at the end of the loop)
+                i = token_start + token_at_most_recent_match.name.n - 1;
+                // Start a new token at the iterator
+                token_start = i+1;
+            } else {
+                // Try starting from the next character
+                token_start++;
             }
             token_detector = get_initial_detector();
         }
     }
     if (match_exists) {
-        token_at_most_recent_match.type = get_token_type(detector_at_most_recent_match);
+        // If there's a lingering valid token (happens when the last character is part of a valid token), add it
         pp_token_vec_append(&tokens, token_at_most_recent_match);
     }
 
+    // Remove the comments
     pp_token_vec tokens_without_comments = pp_token_vec_new(tokens.n_elements);
     for (size_t i = 0; i < tokens.n_elements; i++) {
         if (tokens.arr[i].type != COMMENT) {
@@ -511,6 +510,8 @@ pp_token_vec get_pp_tokens(const struct str_view input) {
         }
     }
     pp_token_vec_free_internals(&tokens);
+
+    print_tokens(tokens_without_comments, true);
 
     return tokens_without_comments;
 }
@@ -546,9 +547,6 @@ void print_tokens(const pp_token_vec tokens, const bool verbose) {
         if (token.after_whitespace) printf(" ");
         for (size_t j = 0; j < token.name.n; j++) {
             printf("%c", token.name.chars[j]);
-        }
-        if (str_view_cstr_eq(token.name, ";")) {
-            printf("\n");
         }
     }
     printf("\n");
