@@ -202,9 +202,7 @@ static struct parsed_char_constant parse_char_constant(const sstr char_constant)
         i = scan_c_char(char_constant, (size_t)i);
         if (i == -1) break;
         else {
-            sstr_vec_append(&c_chars, (sstr) {
-                .data = char_constant.data + char_start, .len = (size_t)i - char_start
-            });
+            sstr_vec_append(&c_chars, slice(char_constant, char_start, (size_t)i));
         }
     }
     return (struct parsed_char_constant) {
@@ -263,15 +261,15 @@ static struct parsed_int_constant parse_int_constant(const sstr int_constant) {
     if (int_constant.len >= 2 && int_constant.data[0] == '0' && (int_constant.data[1] == 'x' || int_constant.data[1] == 'X')) {
         type = INT_CONSTANT_HEX;
         for (i = 2; i < int_constant.len && isxdigit(int_constant.data[i]); i++);
-        digits = (sstr) { .data = int_constant.data + 2, .len = i - 2 };
+        digits = slice(int_constant, 2, i);
     } else if (int_constant.data[0] == '0') {
         type = INT_CONSTANT_OCTAL;
         for (i = 0; i < int_constant.len && is_octal_digit(int_constant.data[i]); i++);
-        digits = (sstr) { .data = int_constant.data, .len = i };
+        digits = slice(int_constant, 0, i);
     } else {
         type = INT_CONSTANT_DECIMAL;
         for (i = 0; i < int_constant.len && isdigit(int_constant.data[i]); i++);
-        digits = (sstr) { .data = int_constant.data, .len = i };
+        digits = slice(int_constant, 0, i);
     }
     bool is_signed = true;
     for (; i < int_constant.len; i++) {
@@ -294,8 +292,13 @@ static struct maybe_signed_intmax eval_int_constant(const struct earley_rule rul
     const sstr rule_val = rule.rhs.symbols.data[0].val.terminal.token.name;
     const struct parsed_int_constant parse = parse_int_constant(rule_val);
     target_uintmax_t result = 0;
+    target_uintmax_t base =
+        parse.type == INT_CONSTANT_OCTAL ? 8 : (
+        parse.type == INT_CONSTANT_DECIMAL ? 10
+        : 16 // INT_CONSTANT_HEX
+        );
     for (size_t i = 0; i < parse.digits.len; i++) {
-        result += (target_uintmax_t)get_hex_digit_value(parse.digits.data[i]) * impow(10, parse.digits.len - i - 1);
+        result += (target_uintmax_t)get_hex_digit_value(parse.digits.data[i]) * impow(base, parse.digits.len - i - 1);
     }
     print_with_color(TEXT_COLOR_LIGHT_RED, "int constant evalutes to %" PRIuMAX "\n", result);
     if (!parse.is_signed || result > impow(2, sizeof(target_intmax_t)*8 - 1) - 1) {

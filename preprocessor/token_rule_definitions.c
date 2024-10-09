@@ -125,7 +125,7 @@ static bool match_integer_constant(struct preprocessing_token token) {
         } else {
             return false;
         }
-        return i == token.name.len || is_int_suffix((sstr) { .data = &token.name.data[i], .len = token.name.len - i });
+        return i == token.name.len || is_int_suffix(slice(token.name, i, token.name.len));
     }
 }
 
