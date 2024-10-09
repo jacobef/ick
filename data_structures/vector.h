@@ -3,13 +3,15 @@
 
 #include <stdlib.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include "debug/reminder.h"
 #include "debug/malloc.h"
 #include "data_structures/heap_arr.h"
 
 #define DEFINE_VEC_TYPE(_type) \
+DEFINE_HARR_TYPE_AND_FUNCTIONS(_type)        \
 typedef struct _type##_vec {   \
-    HARR(_type) arr;           \
+    _type##_harr arr;          \
     size_t capacity;           \
 } _type##_vec;
 
@@ -53,6 +55,12 @@ static void _type##_vec_append_all_arr(_type##_vec *const dest, const _type *con
     }                                                                                                     \
 }
 
+#define DEFINE_VEC_APPEND_ALL_HARR_FUNCTION(_type)                                         \
+__attribute__((unused))                                                                    \
+static void _type##_vec_append_all_harr(_type##_vec *const dest, const _type##_harr arr) { \
+    _type##_vec_append_all_arr(dest, arr.data, arr.len);                                   \
+}
+
 #define DEFINE_VEC_COPY_FUNCTION(_type)                      \
 __attribute__((unused))                                      \
 static _type##_vec _type##_vec_copy(const _type##_vec vec) { \
@@ -82,6 +90,7 @@ static void _type##_vec_free_internals(const _type##_vec *const vec_p) { \
     DEFINE_VEC_APPEND_FUNCTION(_type)                 \
     DEFINE_VEC_APPEND_ALL_FUNCTION(_type)             \
     DEFINE_VEC_APPEND_ALL_ARR_FUNCTION(_type)         \
+    DEFINE_VEC_APPEND_ALL_HARR_FUNCTION(_type)        \
     DEFINE_VEC_COPY_FUNCTION(_type)                   \
     DEFINE_VEC_COPY_ARR_FUNCTION(_type)               \
     DEFINE_VEC_FREE_INTERNALS_FUNCTION(_type)         \

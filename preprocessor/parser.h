@@ -23,26 +23,26 @@ struct terminal {
     bool is_filled;
 };
 
-struct symbol {
+typedef struct symbol {
     union {
         const struct production_rule *rule;
         struct terminal terminal;
     } val;
     bool is_terminal;
-};
+} symbol;
+DEFINE_HARR_TYPE_AND_FUNCTIONS(symbol)
 
-struct alternative {
+typedef struct alternative {
     // represents e.g. B C D (in the context of A -> B C D | E F G)
-    struct symbol *symbols;
-    size_t n;
+    symbol_harr symbols;
     int tag;
-};
+} alternative;
+DEFINE_HARR_TYPE_AND_FUNCTIONS(alternative)
 
 struct production_rule {
     // represents e.g. A -> B C D | E F G
     const char *name;
-    const struct alternative *alternatives;
-    const size_t n;
+    alternative_harr alternatives;
     bool is_list_rule;
 };
 
@@ -53,16 +53,18 @@ struct earley_rule {
     // represents e.g. A -> B [dot] C D (in the context of A -> B C D | E F G)
     const struct production_rule *lhs;
     struct alternative rhs;
-    struct symbol *dot;
-    erule_p_vec *origin_chart;
-    erule_p_vec completed_from;
+    size_t dot;  // if dot is n, then it's "behind" the symbol at index n (i.e. rhs.symbols.data[n])
+    const erule_p_harr *origin_chart;
+    erule_p_harr completed_from;
 };
 
 typedef erule_p_vec *erule_p_vec_p;
+typedef erule_p_harr *erule_p_harr_p;
+DEFINE_VEC_TYPE_AND_FUNCTIONS(erule_p_harr_p)
 DEFINE_VEC_TYPE_AND_FUNCTIONS(erule_p_vec_p)
-erule_p_vec_p_vec make_charts(pp_token_vec tokens, const struct production_rule *start_rule);
+erule_p_harr_p_harr make_charts(pp_token_vec tokens, const struct production_rule *start_rule);
 
-void print_chart(const erule_p_vec *chart);
+void print_chart(const erule_p_harr *chart);
 void print_tree(const struct earley_rule *root, size_t indent);
 void test_parser(pp_token_vec tokens);
 

@@ -1,19 +1,25 @@
 #include <stdbool.h>
+
+#include "data_structures/sstr.h"
 #include "preprocessor/parser.h"
 
-#define ALT(_tag, ...)                                                   \
-    ((const struct alternative) {                                        \
-        .symbols=(struct symbol[]) {__VA_ARGS__},                        \
-        .n=sizeof((struct symbol[]){__VA_ARGS__})/sizeof(struct symbol), \
-        .tag=_tag                                                        \
+#define ALT(_tag, ...)                                                          \
+    ((const struct alternative) {                                               \
+        .symbols = {                                                            \
+            .data = (struct symbol[]) {__VA_ARGS__},                            \
+            .len = sizeof((struct symbol[]){__VA_ARGS__})/sizeof(struct symbol) \
+        },                                                                      \
+        .tag=_tag                                                               \
     })
 
-#define PR_RULE(_name, _is_list_rule, ...)                               \
-    ((const struct production_rule) {                                    \
-        .name=_name,                                                     \
-        .alternatives=(const struct alternative[]) {__VA_ARGS__},        \
-        .n=sizeof((struct alternative[]){__VA_ARGS__})/sizeof(struct alternative), \
-        .is_list_rule=_is_list_rule                                      \
+#define PR_RULE(_name, _is_list_rule, ...)                                              \
+    ((const struct production_rule) {                                                   \
+        .name=_name,                                                                    \
+        .alternatives = {                                                               \
+            .data = (struct alternative[]) {__VA_ARGS__},                               \
+            .len=sizeof((struct alternative[]){__VA_ARGS__})/sizeof(struct alternative) \
+        },                                                                              \
+        .is_list_rule=_is_list_rule                                                     \
     })
 
 #define NT_SYM(_rule)       \
@@ -42,11 +48,10 @@
         .is_terminal=true,                     \
     })
 
-#define EMPTY_ALT(_tag)                   \
-    ((struct alternative) {               \
-        .symbols=(struct symbol[]) { 0 }, \
-        .n=0,                             \
-        .tag=_tag                         \
+#define EMPTY_ALT(_tag)                    \
+    ((struct alternative) {                \
+        .symbols={.data = NULL, .len = 0}, \
+        .tag=_tag                          \
     })
 
 #define OPT(_name, _rule) PR_RULE(_name, false, ALT(OPT_ONE, NT_SYM(_rule)), EMPTY_ALT(OPT_NONE))
@@ -90,7 +95,7 @@ static bool match_non_directive_name(struct preprocessing_token token) {
            !token_is_str(token, "pragma");
 }
 
-static bool is_int_suffix(struct str_view str_view) {
+static bool is_int_suffix(sstr sstr) {
     char *suffixes[] = {
             "u", "U", "l", "L",
             "ll", "LL",
@@ -100,72 +105,72 @@ static bool is_int_suffix(struct str_view str_view) {
             "ull", "uLL", "Ull", "ULL"
     };
     for (size_t i = 0; i < sizeof(suffixes)/sizeof(char*); i++) {
-        if (str_view_cstr_eq(str_view, suffixes[i])) return true;
+        if (sstr_cstr_eq(sstr, suffixes[i])) return true;
     }
     return false;
 }
 
 static bool match_integer_constant(struct preprocessing_token token) {
-    if (token.name.n == 0) return false;
-    else if (token.name.n == 1) return token.name.chars[0] >= '0' && token.name.chars[0] <= '9';
+    if (token.name.len == 0) return false;
+    else if (token.name.len == 1) return token.name.data[0] >= '0' && token.name.data[0] <= '9';
     else {
         size_t i;
-        if (token.name.chars[0] == '0' && (token.name.chars[1] == 'x' || token.name.chars[1] == 'X')) {
-            for (i = 2; i < token.name.n && isxdigit(token.name.chars[i]); i++);
+        if (token.name.data[0] == '0' && (token.name.data[1] == 'x' || token.name.data[1] == 'X')) {
+            for (i = 2; i < token.name.len && isxdigit(token.name.data[i]); i++);
             if (i == 2) return false;
-        } else if (token.name.chars[0] == '0') {
-            for (i = 1; i < token.name.n && token.name.chars[i] >= '0' && token.name.chars[i] <= '7'; i++);
-        } else if (isdigit(token.name.chars[0])) {
-            for (i = 1; i < token.name.n && token.name.chars[i] >= '0' && token.name.chars[i] <= '9'; i++);
+        } else if (token.name.data[0] == '0') {
+            for (i = 1; i < token.name.len && token.name.data[i] >= '0' && token.name.data[i] <= '7'; i++);
+        } else if (isdigit(token.name.data[0])) {
+            for (i = 1; i < token.name.len && token.name.data[i] >= '0' && token.name.data[i] <= '9'; i++);
         } else {
             return false;
         }
-        return i == token.name.n || is_int_suffix((struct str_view) { .chars = &token.name.chars[i], .n = token.name.n - i });
+        return i == token.name.len || is_int_suffix((sstr) { .data = &token.name.data[i], .len = token.name.len - i });
     }
 }
 
-static ssize_t scan_digit_sequence(struct str_view str_view, size_t i) {
-    if (i >= str_view.n || !isdigit(str_view.chars[i])) return -1;
-    for (; i < str_view.n && isdigit(str_view.chars[i]); i++);
+static ssize_t scan_digit_sequence(sstr sstr, size_t i) {
+    if (i >= sstr.len || !isdigit(sstr.data[i])) return -1;
+    for (; i < sstr.len && isdigit(sstr.data[i]); i++);
     return (ssize_t) i;
 }
 
-static ssize_t scan_fractional_constant(struct str_view str_view, size_t i) {
+static ssize_t scan_fractional_constant(sstr sstr, size_t i) {
     // shortest possible fractional constant is .0 or 0.
-    if (i > str_view.n-2) return -1;
-    if (str_view.chars[i] == '.') {
+    if (i > sstr.len-2) return -1;
+    if (sstr.data[i] == '.') {
         i++;
         // 1 or more digits must follow the dot
-        if (i >= str_view.n || !isdigit(str_view.chars[i])) return -1;
+        if (i >= sstr.len || !isdigit(sstr.data[i])) return -1;
         // scan until we reach a non-digit or the end
-        for (; i < str_view.n && isdigit(str_view.chars[i]); i++);
+        for (; i < sstr.len && isdigit(sstr.data[i]); i++);
         return (ssize_t) i;
-    } else if (isdigit(str_view.chars[i])) {
+    } else if (isdigit(sstr.data[i])) {
         // scan until we reach a non-digit or the end
-        for (; i < str_view.n && isdigit(str_view.chars[i]); i++);
+        for (; i < sstr.len && isdigit(sstr.data[i]); i++);
         // if we reach the end first, then there's no dot
-        if (i >= str_view.n || str_view.chars[i] != '.') return -1;
+        if (i >= sstr.len || sstr.data[i] != '.') return -1;
         // scan past the dot
         i++;
         // scan until we reach a non-digit or the end
-        for (; i < str_view.n && isdigit(str_view.chars[i]); i++);
+        for (; i < sstr.len && isdigit(sstr.data[i]); i++);
         return (ssize_t) i;
     } else {
         return -1;
     }
 }
 
-static ssize_t scan_exponent_part(struct str_view str_view, size_t i) {
+static ssize_t scan_exponent_part(sstr sstr, size_t i) {
     // shortest possible exponent part is e0 or E0
-    if (i > str_view.n-2 || (str_view.chars[i] != 'e' && str_view.chars[i] != 'E')) return -1;
+    if (i > sstr.len-2 || (sstr.data[i] != 'e' && sstr.data[i] != 'E')) return -1;
     i++;
-    if (i >= str_view.n) return -1;
+    if (i >= sstr.len) return -1;
     // optional sign
-    if (str_view.chars[i] == '+' || str_view.chars[i] == '-') i++;
+    if (sstr.data[i] == '+' || sstr.data[i] == '-') i++;
     // digit sequence required at the end
-    if (i >= str_view.n || !isdigit(str_view.chars[i])) return -1;
+    if (i >= sstr.len || !isdigit(sstr.data[i])) return -1;
     // scan until we reach a non-digit or the end
-    for (; i < str_view.n && isdigit(str_view.chars[i]); i++);
+    for (; i < sstr.len && isdigit(sstr.data[i]); i++);
     return (ssize_t) i;
 }
 
@@ -181,15 +186,15 @@ static bool match_decimal_floating_constant(struct preprocessing_token token) {
         const ssize_t ei = scan_exponent_part(token.name, (size_t) fi);
         if (ei == -1) { // exponent part doesn't exist
             // should be a floating suffix or the end
-            return (size_t)fi == token.name.n || ((size_t)fi+1 == token.name.n && is_floating_suffix(token.name.chars[fi]));
+            return (size_t)fi == token.name.len || ((size_t)fi+1 == token.name.len && is_floating_suffix(token.name.data[fi]));
         } else { // exponent part does exist
             // should be a floating suffix or the end
-            return (size_t)ei == token.name.n || ((size_t)ei+1 == token.name.n && is_floating_suffix(token.name.chars[ei]));
+            return (size_t)ei == token.name.len || ((size_t)ei+1 == token.name.len && is_floating_suffix(token.name.data[ei]));
         }
     } else { // digit-sequence exponent-part floating-suffix_opt
         const ssize_t ei = scan_exponent_part(token.name, (size_t) di);
         if (ei == -1) return false;
-        return (size_t) ei == token.name.n || ((size_t)ei+1 == token.name.n && is_floating_suffix(token.name.chars[ei]));
+        return (size_t) ei == token.name.len || ((size_t)ei+1 == token.name.len && is_floating_suffix(token.name.data[ei]));
     }
 }
 

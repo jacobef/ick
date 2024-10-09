@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include "data_structures/vector.h"
 #include "data_structures/trie.h"
-#include "data_structures/sized_str.h"
 #include "detector.h"
+#include "data_structures/sstr.h"
 
 struct header_name_detector {
     enum detection_status status;
@@ -95,10 +95,12 @@ enum pp_token_type {
 };
 
 struct preprocessing_token {
-    struct str_view name;
+    sstr name;
     enum pp_token_type type;
     bool after_whitespace;
 };
+typedef struct preprocessing_token pp_token;
+DEFINE_VEC_TYPE_AND_FUNCTIONS(pp_token)
 
 bool in_src_char_set(unsigned char c);
 
@@ -118,12 +120,10 @@ struct preprocessing_token_detector {
 };
 enum exclude_from_detection {EXCLUDE_STRING_LITERAL, EXCLUDE_HEADER_NAME};
 
-typedef struct preprocessing_token pp_token;
-DEFINE_VEC_TYPE_AND_FUNCTIONS(pp_token)
-pp_token_vec get_pp_tokens(struct str_view input);
+pp_token_vec get_pp_tokens(sstr input);
 
-bool is_valid_token(struct str_view token, enum exclude_from_detection exclude);
-enum pp_token_type get_token_type_from_str(struct str_view token, enum exclude_from_detection exclude);
+bool is_valid_token(sstr token, enum exclude_from_detection exclude);
+enum pp_token_type get_token_type_from_str(sstr token, enum exclude_from_detection exclude);
 
 void print_tokens(pp_token_vec tokens, bool verbose);
 

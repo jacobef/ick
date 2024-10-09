@@ -2,6 +2,8 @@
 #include <ctype.h>
 #include "detector.h"
 #include "pp_token.h"
+
+#include "data_structures/sstr.h"
 #include "preprocessor/diagnostics.h"
 
 bool in_src_char_set(const unsigned char c) {
@@ -401,7 +403,7 @@ static enum pp_token_type get_token_type(const struct preprocessing_token_detect
 }
 
 bool token_is_str(const struct preprocessing_token token, const char *const str) {
-    return str_view_cstr_eq(token.name, str);
+    return sstr_cstr_eq(token.name, str);
 }
 
 static bool in_include_directive(const pp_token_vec tokens) {
@@ -437,48 +439,48 @@ static struct preprocessing_token_detector get_initial_detector(void) {
     return initial_detector;
 }
 
-bool is_valid_token(const struct str_view token, const enum exclude_from_detection exclude) {
+bool is_valid_token(const sstr token, const enum exclude_from_detection exclude) {
     struct preprocessing_token_detector detector = get_initial_detector();
-    for (size_t i = 0; i < token.n; i++) {
-        detector = detect_preprocessing_token(detector, token.chars[i], exclude);
+    for (size_t i = 0; i < token.len; i++) {
+        detector = detect_preprocessing_token(detector, token.data[i], exclude);
     }
     return detector.status == MATCH;
 }
 
-enum pp_token_type get_token_type_from_str(const struct str_view token, const enum exclude_from_detection exclude) {
+enum pp_token_type get_token_type_from_str(const sstr token, const enum exclude_from_detection exclude) {
     struct preprocessing_token_detector detector = get_initial_detector();
-    for (size_t i = 0; i < token.n; i++) {
-        detector = detect_preprocessing_token(detector, token.chars[i], exclude);
+    for (size_t i = 0; i < token.len; i++) {
+        detector = detect_preprocessing_token(detector, token.data[i], exclude);
     }
     return get_token_type(detector);
 }
 
 
-pp_token_vec get_pp_tokens(const struct str_view input) {
+pp_token_vec get_pp_tokens(const sstr input) {
     // TODO:
     // Error on invalid tokens.
     // Currently, it skips over invalid tokens instead of erroring.
     // This is fine in C because it only ends up skipping over whitespace (since any single character is a valid token).
     // But if C was different, then it would skip over invalid tokens, when it should error.
 
-    pp_token_vec tokens = pp_token_vec_new(input.n / 3);  // guess 3 chars per token
+    pp_token_vec tokens = pp_token_vec_new(input.len / 3);  // guess 3 chars per token
     bool match_exists = false;
     struct preprocessing_token_detector token_detector = get_initial_detector();
 
     size_t token_start = 0;
     struct preprocessing_token token_at_most_recent_match;
-    for (size_t i = 0; i < input.n; i++) {
+    for (size_t i = 0; i < input.len; i++) {
         // The token can't be a string literal if it's after #include, and it can't be a header name if it's not
-        token_detector = detect_preprocessing_token(token_detector, input.chars[i],
+        token_detector = detect_preprocessing_token(token_detector, input.data[i],
                                                     in_include_directive(tokens) ? EXCLUDE_STRING_LITERAL : EXCLUDE_HEADER_NAME);
         // If the token is valid, then indicate that and set token_at_most_recent_match to the token
         if (token_detector.status == MATCH) {
             match_exists = true;
-            const bool after_actual_whitespace = token_start != 0 && isspace(input.chars[token_start-1]);
+            const bool after_actual_whitespace = token_start != 0 && isspace(input.data[token_start-1]);
             const bool after_comment = tokens.arr.len > 0 && tokens.arr.data[tokens.arr.len - 1].type == COMMENT;
             token_at_most_recent_match = (struct preprocessing_token) {
                 .after_whitespace = after_actual_whitespace || after_comment,
-                .name = { .chars = &input.chars[token_start], .n = i-token_start + 1 },
+                .name = { .data = &input.data[token_start], .len = i-token_start + 1 },
                 .type = get_token_type(token_detector)
             };
         } else if (token_detector.status == IMPOSSIBLE) {
@@ -487,7 +489,7 @@ pp_token_vec get_pp_tokens(const struct str_view input) {
                 pp_token_vec_append(&tokens, token_at_most_recent_match);
                 match_exists = false;
                 // Set the iterator to right after that token (-1 because char_p gets incremented at the end of the loop)
-                i = token_start + token_at_most_recent_match.name.n - 1;
+                i = token_start + token_at_most_recent_match.name.len - 1;
                 // Start a new token at the iterator
                 token_start = i+1;
             } else {
@@ -520,11 +522,11 @@ void print_tokens(const pp_token_vec tokens, const bool verbose) {
     if (verbose) {
         for (size_t i = 0; i < tokens.arr.len; i++) {
             const struct preprocessing_token token = tokens.arr.data[i];
-            for (size_t j = 0; j < token.name.n; j++) {
-                if (token.name.chars[j] == '\n') {
+            for (size_t j = 0; j < token.name.len; j++) {
+                if (token.name.data[j] == '\n') {
                     printf("[newline]");
                 } else {
-                    printf("%c", token.name.chars[j]);
+                    printf("%c", token.name.data[j]);
                 }
             }
             printf(" (");
@@ -545,8 +547,8 @@ void print_tokens(const pp_token_vec tokens, const bool verbose) {
     for (size_t i = 0; i < tokens.arr.len; i++) {
         const struct preprocessing_token token = tokens.arr.data[i];
         if (token.after_whitespace) printf(" ");
-        for (size_t j = 0; j < token.name.n; j++) {
-            printf("%c", token.name.chars[j]);
+        for (size_t j = 0; j < token.name.len; j++) {
+            printf("%c", token.name.data[j]);
         }
     }
     printf("\n");

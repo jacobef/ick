@@ -3,7 +3,6 @@
 #include "data_structures/vector.h"
 #include "driver/file_utils.h"
 #include "driver/diagnostics.h"
-#include "data_structures/sized_str.h"
 #include "preprocessor/trigraphs.h"
 #include "preprocessor/escaped_newlines.h"
 #include "preprocessor/pp_token.h"
@@ -55,10 +54,10 @@ int main(int argc, char *argv[]) {
     input_chars[input_len] = '\n'; // too much of a pain without this
 
     struct trigraph_replacement_info trigraph_replacement = replace_trigraphs(
-            (struct str_view){ .chars = input_chars, .n = input_len + 1 }
+            (sstr){ .data = input_chars, .len = input_len + 1 }
     );
     struct escaped_newlines_replacement_info logical_lines = rm_escaped_newlines(trigraph_replacement.result);
-    fwrite(logical_lines.result.chars, sizeof(char), logical_lines.result.n, output_file);
+    fwrite(logical_lines.result.data, sizeof(char), logical_lines.result.len, output_file);
 
     fclose(output_file);
 
@@ -70,7 +69,7 @@ int main(int argc, char *argv[]) {
 
     pp_token_vec_free_internals(&tokens);
     FREE(input_chars);
-    FREE(trigraph_replacement.result.chars);
-    FREE(logical_lines.result.chars);
+    FREE(trigraph_replacement.result.data);
+    FREE(logical_lines.result.data);
     FREE(ick_progname);
 }
