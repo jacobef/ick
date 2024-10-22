@@ -37,7 +37,7 @@ DEFINE_RESULT_TYPE(void_p)
 DEFINE_UNWRAP(void_p)
 
 __attribute__((unused))
-static struct result_void_p rmalloc(size_t size) {
+static struct result_void_p rmalloc(const size_t size) {
     void *res = malloc(size);
     if (res != NULL) {
         return OK(void_p, res);

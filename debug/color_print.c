@@ -66,4 +66,5 @@ void print_with_color(const enum text_color color, const char *const text, ...) 
     set_color(color);
     vprintf(text, args);
     clear_color();
+    va_end(args);
 }

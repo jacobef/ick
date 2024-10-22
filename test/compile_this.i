@@ -1,4 +1,2 @@
-#if 0xFF == 255
-    #define A(x,y) x##y C
-    A(,)
-#endif
+#define A(x,y,z) #z
+A(1,, )

@@ -17,7 +17,7 @@ typedef struct macro_args_and_body {
     pp_token_harr replacements;
 } macro_args_and_body;
 
-static size_t hash_ssstr(sstr token_name, size_t capacity) {
+static size_t hash_ssstr(const sstr token_name, const size_t capacity) {
     size_t chars_sum = 0;
     for (size_t i = 0; i < token_name.len; i++) {
         chars_sum += (size_t)(token_name.data[i]);
@@ -48,6 +48,6 @@ void define_object_like_macro(struct earley_rule rule, sstr_macro_args_and_body_
 void define_function_like_macro(struct earley_rule rule, sstr_macro_args_and_body_map *macros);
 void print_macros(const sstr_macro_args_and_body_map *macros);
 void reconstruct_macro_use(struct macro_use_info info);
-pp_token_vec replace_macros(pp_token_vec tokens, sstr_macro_args_and_body_map macro_map);
+pp_token_harr replace_macros(pp_token_harr tokens, sstr_macro_args_and_body_map macro_map);
 
 #endif //MACROS_H

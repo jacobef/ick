@@ -56,31 +56,31 @@
 
 #define OPT(_name, _rule) PR_RULE(_name, false, ALT(OPT_ONE, NT_SYM(_rule)), EMPTY_ALT(OPT_NONE))
 
-static bool match_preprocessing_token(__attribute__((unused)) struct preprocessing_token token) {
+static bool match_preprocessing_token(__attribute__((unused)) const struct preprocessing_token token) {
     return !token_is_str(token, "\n");
 }
 
-static bool match_lparen(struct preprocessing_token token) {
+static bool match_lparen(const struct preprocessing_token token) {
     return token_is_str(token, "(") && !token.after_whitespace;
 }
 
-static bool match_identifier(struct preprocessing_token token) {
+static bool match_identifier(const struct preprocessing_token token) {
     return token.type == IDENTIFIER;
 }
 
-static bool match_string_literal(struct preprocessing_token token) {
+static bool match_string_literal(const struct preprocessing_token token) {
     return token.type == STRING_LITERAL;
 }
 
-static bool match_character_constant(struct preprocessing_token token) {
+static bool match_character_constant(const struct preprocessing_token token) {
     return token.type == CHARACTER_CONSTANT;
 }
 
-static bool match_non_hashtag(struct preprocessing_token token) {
+static bool match_non_hashtag(const struct preprocessing_token token) {
     return match_preprocessing_token(token) && !token_is_str(token, "#");
 }
 
-static bool match_non_directive_name(struct preprocessing_token token) {
+static bool match_non_directive_name(const struct preprocessing_token token) {
     return !token_is_str(token, "define") &&
            !token_is_str(token, "undef") &&
            !token_is_str(token, "if") &&
@@ -95,7 +95,7 @@ static bool match_non_directive_name(struct preprocessing_token token) {
            !token_is_str(token, "pragma");
 }
 
-static bool is_int_suffix(sstr sstr) {
+static bool is_int_suffix(const sstr sstr) {
     char *suffixes[] = {
             "u", "U", "l", "L",
             "ll", "LL",
@@ -110,7 +110,7 @@ static bool is_int_suffix(sstr sstr) {
     return false;
 }
 
-static bool match_integer_constant(struct preprocessing_token token) {
+static bool match_integer_constant(const struct preprocessing_token token) {
     if (token.name.len == 0) return false;
     else if (token.name.len == 1) return token.name.data[0] >= '0' && token.name.data[0] <= '9';
     else {
@@ -129,13 +129,13 @@ static bool match_integer_constant(struct preprocessing_token token) {
     }
 }
 
-static ssize_t scan_digit_sequence(sstr sstr, size_t i) {
+static ssize_t scan_digit_sequence(const sstr sstr, size_t i) {
     if (i >= sstr.len || !isdigit(sstr.data[i])) return -1;
     for (; i < sstr.len && isdigit(sstr.data[i]); i++);
     return (ssize_t) i;
 }
 
-static ssize_t scan_fractional_constant(sstr sstr, size_t i) {
+static ssize_t scan_fractional_constant(const sstr sstr, size_t i) {
     // shortest possible fractional constant is .0 or 0.
     if (i > sstr.len-2) return -1;
     if (sstr.data[i] == '.') {
@@ -160,7 +160,7 @@ static ssize_t scan_fractional_constant(sstr sstr, size_t i) {
     }
 }
 
-static ssize_t scan_exponent_part(sstr sstr, size_t i) {
+static ssize_t scan_exponent_part(const sstr sstr, size_t i) {
     // shortest possible exponent part is e0 or E0
     if (i > sstr.len-2 || (sstr.data[i] != 'e' && sstr.data[i] != 'E')) return -1;
     i++;
@@ -178,7 +178,7 @@ static bool is_floating_suffix(unsigned char c) {
     return c == 'f' || c == 'F' || c == 'l' || c == 'L';
 }
 
-static bool match_decimal_floating_constant(struct preprocessing_token token) {
+static bool match_decimal_floating_constant(const struct preprocessing_token token) {
     const ssize_t fi = scan_fractional_constant(token.name, 0);
     const ssize_t di = scan_digit_sequence(token.name, 0);
     if (fi == -1 && di == -1) return false;
@@ -198,7 +198,7 @@ static bool match_decimal_floating_constant(struct preprocessing_token token) {
     }
 }
 
-static bool match_floating_constant(struct preprocessing_token token) {
+static bool match_floating_constant(const struct preprocessing_token token) {
     // TODO add hex float support
     return match_decimal_floating_constant(token);
 }

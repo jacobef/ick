@@ -1,8 +1,6 @@
 #ifndef ICK_TRIGRAPHS_H
 #define ICK_TRIGRAPHS_H
 
-#include <stddef.h>
-
 #include "data_structures/sstr.h"
 #include "data_structures/vector.h"
 

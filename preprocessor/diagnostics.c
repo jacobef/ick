@@ -1,6 +1,9 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include "diagnostics.h"
+
+#include <stdio.h>
+
 #include "data_structures/vector.h"
 
 #define VFPRINTF_VAARGS_FOLLOW(_stream, _fmt) \
@@ -10,12 +13,14 @@
     va_end(args)
 
 static void preprocessor_message_prefix(FILE *stream, const size_t line, const size_t first_char, const size_t last_char) {
-    if (first_char == last_char)
+    if (first_char == last_char) {
         fprintf(stream, "%s (line %zu, char %zu): ", "insert filename here", line, first_char);
-    else
+    } else {
         fprintf(stream, "%s (line %zu, chars %zu-%zu): ", "insert filename here", line, first_char, last_char);
+    }
 }
 
+__attribute__((noreturn))
 void preprocessor_fatal_error(const size_t line, const size_t first_char, const size_t last_char, const char *msg_fmt, ...) {
     preprocessor_message_prefix(stderr, line, first_char, last_char);
     fprintf(stderr, "fatal error: ");
@@ -38,14 +43,14 @@ void preprocessor_warning(const size_t line, const size_t first_char, const size
     fprintf(stderr, "\n");
 }
 
-static size_t original_index(size_t index, size_t_vec trigraph_indices, size_t_vec escaped_newline_indices) {
+static size_t original_index(size_t index, const size_t_harr trigraph_indices, const size_t_harr escaped_newline_indices) {
     // Get the index from before the escaped newlines were replaced
-    for (size_t i = 0; i < escaped_newline_indices.arr.len; i++) {
-        if (escaped_newline_indices.arr.data[i] <= index) index += 2;
+    for (size_t i = 0; i < escaped_newline_indices.len; i++) {
+        if (escaped_newline_indices.data[i] <= index) index += 2;
     }
     // Get the index from before the trigraphs were replaced
-    for (size_t i = 0; i < trigraph_indices.arr.len; i++) {
-        if (trigraph_indices.arr.data[i] <= index) index += 2;
+    for (size_t i = 0; i < trigraph_indices.len; i++) {
+        if (trigraph_indices.data[i] <= index) index += 2;
     }
     return index;
 }

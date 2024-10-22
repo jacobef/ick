@@ -120,12 +120,12 @@ struct preprocessing_token_detector {
 };
 enum exclude_from_detection {EXCLUDE_STRING_LITERAL, EXCLUDE_HEADER_NAME};
 
-pp_token_vec get_pp_tokens(sstr input);
+pp_token_harr get_pp_tokens(sstr input);
 
 bool is_valid_token(sstr token, enum exclude_from_detection exclude);
 enum pp_token_type get_token_type_from_str(sstr token, enum exclude_from_detection exclude);
 
-void print_tokens(pp_token_vec tokens, bool verbose);
+void print_tokens(pp_token_harr tokens, bool verbose);
 
 static const struct trie punctuators_trie = {
     /*

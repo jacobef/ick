@@ -21,7 +21,7 @@ static struct earley_rule get_replacement_list_rule(const struct earley_rule con
     }
 }
 
-static pp_token_vec get_replacement_tokens(const struct earley_rule control_line_rule) {
+static pp_token_harr get_replacement_tokens(const struct earley_rule control_line_rule) {
     const struct earley_rule replacement_list_rule = get_replacement_list_rule(control_line_rule);
     const struct earley_rule pp_tokens_opt_rule = *replacement_list_rule.completed_from.data[0];
     pp_token_vec replacement_tokens = pp_token_vec_new(0);
@@ -32,7 +32,7 @@ static pp_token_vec get_replacement_tokens(const struct earley_rule control_line
             pp_token_vec_append(&replacement_tokens, pp_token_rule.rhs.symbols.data[0].val.terminal.token);
         }
     }
-    return replacement_tokens;
+    return replacement_tokens.arr;
 }
 
 static struct preprocessing_token get_macro_name_token(const struct earley_rule control_line_rule) {
@@ -56,11 +56,11 @@ void define_object_like_macro(const struct earley_rule rule, sstr_macro_args_and
     }
     const struct preprocessing_token macro_name_token = get_macro_name_token(rule);
 
-    const pp_token_vec replacement_tokens = get_replacement_tokens(rule);
+    const pp_token_harr replacement_tokens = get_replacement_tokens(rule);
 
     if (sstr_macro_args_and_body_map_contains(macros, macro_name_token.name)) {
         const struct macro_args_and_body existing_macro = sstr_macro_args_and_body_map_get(macros, macro_name_token.name);
-        if (!replacement_lists_identical(replacement_tokens.arr, existing_macro.replacements)) {
+        if (!replacement_lists_identical(replacement_tokens, existing_macro.replacements)) {
             preprocessor_error(0, 0, 0, "macro already exists");
         }
         return;
@@ -71,7 +71,7 @@ void define_object_like_macro(const struct earley_rule rule, sstr_macro_args_and
             .is_function_like = false,
             .args = {.data = NULL, .len = 0},
             .accepts_varargs = false,
-            .replacements = replacement_tokens.arr
+            .replacements = replacement_tokens
         }
     );
 }
@@ -84,7 +84,7 @@ static void append_identifier_names(sstr_vec *vec, const struct earley_rule iden
     }
 }
 
-static sstr_vec get_macro_params(const struct earley_rule control_line_rule) {
+static sstr_harr get_macro_params(const struct earley_rule control_line_rule) {
     if (control_line_rule.lhs != &tr_control_line || (control_line_rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_MIXED_ARGS && control_line_rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_ONLY_VARARGS && control_line_rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_NO_VARARGS)) {
         preprocessor_fatal_error(0, 0, 0, "rule passed to define_object_like_macro is not an object-like macro");
     }
@@ -115,10 +115,10 @@ static sstr_vec get_macro_params(const struct earley_rule control_line_rule) {
             preprocessor_fatal_error(0, 0, 0, "rule passed to define_object_like_macro is not an object-like macro");
     }
 
-    return params;
+    return params.arr;
 }
 
-static bool args_identical(sstr_harr args1, sstr_harr args2) {
+static bool args_identical(const sstr_harr args1, const sstr_harr args2) {
     if (args1.len != args2.len) return false;
     for (size_t i = 0; i < args1.len; i++) {
         if (!sstrs_eq(args1.data[i], args2.data[i])) return false;
@@ -131,13 +131,13 @@ void define_function_like_macro(const struct earley_rule rule, sstr_macro_args_a
         preprocessor_fatal_error(0, 0, 0, "rule passed to define_function_like_macro is not an function-like macro");
     }
     const struct preprocessing_token macro_name_token = rule.completed_from.data[0]->rhs.symbols.data[0].val.terminal.token;
-    const pp_token_vec replacement_tokens = get_replacement_tokens(rule);
-    const sstr_vec args = get_macro_params(rule);
+    const pp_token_harr replacement_tokens = get_replacement_tokens(rule);
+    const sstr_harr args = get_macro_params(rule);
 
     if (sstr_macro_args_and_body_map_contains(macros, macro_name_token.name)) {
         const struct macro_args_and_body existing_macro = sstr_macro_args_and_body_map_get(macros, macro_name_token.name);
-        const bool replacements_same = replacement_lists_identical(replacement_tokens.arr, existing_macro.replacements);
-        const bool args_same = args_identical(args.arr, existing_macro.args);
+        const bool replacements_same = replacement_lists_identical(replacement_tokens, existing_macro.replacements);
+        const bool args_same = args_identical(args, existing_macro.args);
         if (!replacements_same || !args_same) {
             preprocessor_error(0, 0, 0, "macro already exists");
         }
@@ -147,17 +147,17 @@ void define_function_like_macro(const struct earley_rule rule, sstr_macro_args_a
     sstr_macro_args_and_body_map_add(macros, macro_name_token.name,
         (struct macro_args_and_body){
             .is_function_like = true,
-            .args = args.arr,
+            .args = args,
             .accepts_varargs = rule.rhs.tag != CONTROL_LINE_DEFINE_FUNCTION_LIKE_NO_VARARGS,
-            .replacements = replacement_tokens.arr
+            .replacements = replacement_tokens
         }
     );
 }
 
-static struct macro_use_info get_macro_use_info(const token_with_ignore_list_vec tokens, const size_t macro_inv_start, const macro_args_and_body macro_def) {
-    const sstr_vec new_dont_replace = sstr_vec_copy(tokens.arr.data[macro_inv_start].dont_replace);
+static struct macro_use_info get_macro_use_info(const token_with_ignore_list_harr tokens, const size_t macro_inv_start, const macro_args_and_body macro_def) {
+    const sstr_vec new_dont_replace = sstr_vec_copy(tokens.data[macro_inv_start].dont_replace);
 
-    if (macro_inv_start == tokens.arr.len - 1 || !token_is_str(tokens.arr.data[macro_inv_start + 1].token, "(")) {
+    if (macro_inv_start == tokens.len - 1 || !token_is_str(tokens.data[macro_inv_start + 1].token, "(")) {
         // object-like use
         if (macro_def.is_function_like) {
             // object-like use of function-like macro
@@ -167,7 +167,7 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_vec
         }
         // object-like use of object-like macro
         return (struct macro_use_info) {
-            .macro_name = tokens.arr.data[macro_inv_start].token.name,
+            .macro_name = tokens.data[macro_inv_start].token.name,
             .end_index = macro_inv_start + 1,
             .args = {.data = NULL, .len = 0},
             .is_function_like = false,
@@ -177,7 +177,7 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_vec
     } else if (!macro_def.is_function_like) {
         // function-like use of object-like macro
         return (struct macro_use_info) {
-                .macro_name = tokens.arr.data[macro_inv_start].token.name,
+                .macro_name = tokens.data[macro_inv_start].token.name,
                 .end_index = macro_inv_start + 1,
                 .args = {.data = NULL, .len = 0},
                 .is_function_like = false,
@@ -193,19 +193,19 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_vec
     bool in_varargs = macro_def.accepts_varargs && macro_def.args.len == 0;
     int net_open_parens = 1;
     size_t i = macro_inv_start + 2; // skip the macro name and first open paren
-    for (; i < tokens.arr.len; i++) {
-        if (token_is_str(tokens.arr.data[i].token, "(")) {
+    for (; i < tokens.len; i++) {
+        if (token_is_str(tokens.data[i].token, "(")) {
             net_open_parens++;
-        } else if (token_is_str(tokens.arr.data[i].token, ")")) {
+        } else if (token_is_str(tokens.data[i].token, ")")) {
             net_open_parens--;
             if (net_open_parens == 0) {
                 i++;
                 break;
             }
         } else if (in_varargs) {
-            token_with_ignore_list_vec_append(&varargs, tokens.arr.data[i]);
+            token_with_ignore_list_vec_append(&varargs, tokens.data[i]);
         }
-        if (net_open_parens == 1 && token_is_str(tokens.arr.data[i].token, ",")) {
+        if (net_open_parens == 1 && token_is_str(tokens.data[i].token, ",")) {
             // argument-separating comma
             token_with_ignore_list_harr_vec_append(&given_args, current_arg.arr);
             if (macro_def.accepts_varargs && given_args.arr.len == macro_def.args.len) {
@@ -213,7 +213,7 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_vec
             }
             current_arg = token_with_ignore_list_vec_new(0);
         } else {
-            token_with_ignore_list_vec_append(&current_arg, tokens.arr.data[i]);
+            token_with_ignore_list_vec_append(&current_arg, tokens.data[i]);
         }
     }
     if (net_open_parens > 0) {
@@ -222,7 +222,7 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_vec
 
     const bool macro_can_take_one_arg = (macro_def.args.len == 1 && !macro_def.accepts_varargs) || (macro_def.args.len == 0 && macro_def.accepts_varargs);
     if (current_arg.arr.len > 0
-        || (i >= 2 && token_is_str(tokens.arr.data[i-2].token, ","))
+        || (i >= 2 && token_is_str(tokens.data[i-2].token, ","))
         || (current_arg.arr.len == 0 && given_args.arr.len == 0 && macro_can_take_one_arg)) {
         // current_arg.arr.len > 0: non-empty arg at end, e.g. A(x, y)
         // i >= 2 && token_is_str(tokens.arr.data[i-2], ",")): empty arg at end, e.g. A(x,)
@@ -239,7 +239,7 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_vec
     }
 
     return (struct macro_use_info) {
-        .macro_name = tokens.arr.data[macro_inv_start].token.name,
+        .macro_name = tokens.data[macro_inv_start].token.name,
         .end_index = i,
         .args = given_args.arr,
         .vararg_tokens = varargs.arr,
@@ -270,8 +270,8 @@ static sstr stringify(const token_with_ignore_list_harr arg) {
 
 static sstr concatenate(const sstr arg1, const sstr arg2) {
     uchar_vec out = uchar_vec_new(arg1.len + arg2.len);
-    uchar_vec_append_all_arr(&out, arg1.data, arg1.len);
-    uchar_vec_append_all_arr(&out, arg2.data, arg2.len);
+    uchar_vec_append_all_harr(&out, arg1);
+    uchar_vec_append_all_harr(&out, arg2);
     return out.arr;
 }
 
@@ -284,18 +284,18 @@ static ssize_t get_arg_index(const sstr token_name, const struct macro_args_and_
     return -1;
 }
 
-static bool sstr_vec_contains(sstr_vec vec, sstr view) {
-    for (size_t i = 0; i < vec.arr.len; i++) {
-        if (sstrs_eq(vec.arr.data[i], view)) {
+static bool sstr_harr_contains(const sstr_harr arr, const sstr view) {
+    for (size_t i = 0; i < arr.len; i++) {
+        if (sstrs_eq(arr.data[i], view)) {
             return true;
         }
     }
     return false;
 }
 
-static token_with_ignore_list_vec replace_macros_helper(token_with_ignore_list_vec tokens, size_t scan_start, sstr_macro_args_and_body_map macro_map);
+static token_with_ignore_list_harr replace_macros_helper(token_with_ignore_list_harr tokens, size_t scan_start, sstr_macro_args_and_body_map macro_map);
 
-static token_with_ignore_list_vec replace_arg(const token_with_ignore_list_harr arg, const sstr_macro_args_and_body_map macro_map, const sstr macro_name, const sstr_vec ignore_list) {
+static token_with_ignore_list_harr replace_arg(const token_with_ignore_list_harr arg, const sstr_macro_args_and_body_map macro_map, const sstr macro_name, const sstr_vec ignore_list) {
     token_with_ignore_list_vec arg_tokens = token_with_ignore_list_vec_new(0);
     for (size_t i = 0; i < arg.len; i++) {
         sstr_vec new_ignore_list = sstr_vec_copy(ignore_list);
@@ -304,18 +304,18 @@ static token_with_ignore_list_vec replace_arg(const token_with_ignore_list_harr 
                 .token = arg.data[i].token, .dont_replace = new_ignore_list
         });
     }
-    const token_with_ignore_list_vec out = replace_macros_helper(arg_tokens, 0, macro_map);
-    for (size_t i = 0; i < out.arr.len; i++) {
-        sstr_vec_append(&out.arr.data[i].dont_replace, macro_name);
+    const token_with_ignore_list_harr out = replace_macros_helper(arg_tokens.arr, 0, macro_map);
+    for (size_t i = 0; i < out.len; i++) {
+        sstr_vec_append(&out.data[i].dont_replace, macro_name);
     }
     return out;
 }
 
-static pp_token_vec eval_stringifies(const struct macro_args_and_body macro_info, const struct macro_use_info use_info) {
+static pp_token_harr eval_stringifies(const struct macro_args_and_body macro_info, const struct macro_use_info use_info) {
     pp_token_vec out = pp_token_vec_new(0);
     for (size_t i = 0; i < macro_info.replacements.len;) {
         if (i != macro_info.replacements.len - 1 && token_is_str(macro_info.replacements.data[i], "#") && macro_info.is_function_like) {
-            ssize_t arg_index = get_arg_index(macro_info.replacements.data[i+1].name, macro_info);
+            const ssize_t arg_index = get_arg_index(macro_info.replacements.data[i+1].name, macro_info);
             if (arg_index == -1) {
                 preprocessor_fatal_error(0, 0, 0, "can't stringify non-argument");
             }
@@ -334,27 +334,27 @@ static pp_token_vec eval_stringifies(const struct macro_args_and_body macro_info
             i++;
         }
     }
-    return out;
+    return out.arr;
 }
 
 typedef _Bool boolean;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(boolean)
 
-static token_with_ignore_list_vec get_replacement(struct macro_args_and_body macro_info, struct macro_use_info use_info, sstr_macro_args_and_body_map macro_map) {
-    printf("getting replacement for call of macro %.*s\n", (int)use_info.macro_name.len, use_info.macro_name.data);
+static token_with_ignore_list_vec get_replacement(struct macro_args_and_body macro_info, struct macro_use_info use_info, const sstr_macro_args_and_body_map macro_map) {
+    printf("getting replacement for call of macro %.*s\n", (int)use_info.macro_name.len, (const char*)use_info.macro_name.data);
 
     // TODO error if __VA_ARGS__ is used outside a variadic macro
 
     if (macro_info.accepts_varargs) {
         // The macro use info comes in with the normal argument and varargs as separate. This adds all the varargs as 1 extra argument at the end.
         token_with_ignore_list_harr_vec new_given_args = token_with_ignore_list_harr_vec_new(use_info.args.len + 1);
-        token_with_ignore_list_harr_vec_append_all_arr(&new_given_args, use_info.args.data, macro_info.args.len); // not a typo
+        token_with_ignore_list_harr_vec_append_all_harr(&new_given_args, use_info.args); // not a typo
         token_with_ignore_list_harr_vec_append(&new_given_args, use_info.vararg_tokens);
         use_info.args = new_given_args.arr;
 
         // Similarly, we need to add an extra argument to the macro info, called __VA_ARGS__
         sstr_vec new_arg_names = sstr_vec_new(macro_info.args.len + 1);
-        sstr_vec_append_all_arr(&new_arg_names, macro_info.args.data, macro_info.args.len);
+        sstr_vec_append_all_harr(&new_arg_names, macro_info.args);
         sstr_vec_append(&new_arg_names, SSTR_FROM_LITERAL("__VA_ARGS__"));
         macro_info.args = new_arg_names.arr;
     }
@@ -385,29 +385,29 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
     */
     bool dont_add_left_operand = false;
 
-    pp_token_vec stringifies_expanded = eval_stringifies(macro_info, use_info);
+    const pp_token_harr stringifies_expanded = eval_stringifies(macro_info, use_info);
 
     // Token concatenation is evaluated in 2 stages:
     // 1. Every token is macro-replaced appropriately, including the operands to the token concatenation.
     //    A bool vector needs_concat is created; if needs_concat[i] is true then replaced_tokens[i] needs to be concatenated with the token before it.
     // 2. The tokens are concatenated according to needs_concat.
     // This for loop is step 1.
-    for (size_t i = 0; i < stringifies_expanded.arr.len;) {
+    for (size_t i = 0; i < stringifies_expanded.len;) {
         // If ## is after this token, then...
-        if (i != stringifies_expanded.arr.len - 1 && token_is_str(stringifies_expanded.arr.data[i+1], "##")) {
-            if (i+1 == stringifies_expanded.arr.len - 1) {
+        if (i != stringifies_expanded.len - 1 && token_is_str(stringifies_expanded.data[i+1], "##")) {
+            if (i+1 == stringifies_expanded.len - 1) {
                 preprocessor_fatal_error(0, 0, 0, "## can't appear at beginning or end of macro");
             }
 
             // Figure out whether the operands are macro arguments, and if so, what the indices of the arguments are
-            const ssize_t left_operand_arg_i = get_arg_index(stringifies_expanded.arr.data[i].name, macro_info);
-            const ssize_t right_operand_arg_i = get_arg_index(stringifies_expanded.arr.data[i + 2].name, macro_info);
+            const ssize_t left_operand_arg_i = get_arg_index(stringifies_expanded.data[i].name, macro_info);
+            const ssize_t right_operand_arg_i = get_arg_index(stringifies_expanded.data[i + 2].name, macro_info);
 
             if (!dont_add_left_operand) {
                 if (left_operand_arg_i == -1) {
                     // If the left operand isn't an argument, it doesn't need to be replaced. Add it to the tokens list.
                     token_with_ignore_list_vec_append(&replaced_tokens, (struct token_with_ignore_list) {
-                            .token = stringifies_expanded.arr.data[i], .dont_replace = sstr_vec_copy(dont_replace_list)
+                            .token = stringifies_expanded.data[i], .dont_replace = sstr_vec_copy(dont_replace_list)
                     });
                     // The left operand shouldn't be concatenated with the token before it
                     boolean_vec_append(&needs_concat, false);
@@ -416,7 +416,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
                     token_with_ignore_list_vec_append(&replaced_tokens, (struct token_with_ignore_list) {
                             .token = {
                                     .name = SSTR_FROM_LITERAL(""),
-                                    .after_whitespace = stringifies_expanded.arr.data[i].after_whitespace,
+                                    .after_whitespace = stringifies_expanded.data[i].after_whitespace,
                                     // type intentionally omitted
                             },
                             .dont_replace = sstr_vec_copy(dont_replace_list)
@@ -425,9 +425,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
                     boolean_vec_append(&needs_concat, false);
                 } else {
                     // If the left operand is a non-empty argument, add all the tokens from the given argument
-                    token_with_ignore_list_vec_append_all_arr(&replaced_tokens,
-                                                              use_info.args.data[left_operand_arg_i].data,
-                                                              use_info.args.data[left_operand_arg_i].len);
+                    token_with_ignore_list_vec_append_all_harr(&replaced_tokens, use_info.args.data[left_operand_arg_i]);
                     // None of left operand's tokens should be concatenated with the preceding token
                     for (size_t j = 0; j < use_info.args.data[left_operand_arg_i].len; j++) {
                         boolean_vec_append(&needs_concat, false);
@@ -437,7 +435,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
             if (right_operand_arg_i == -1) {
                 // Like with the left operand, if the right operand isn't an argument, just add it to the tokens list
                 token_with_ignore_list_vec_append(&replaced_tokens, (struct token_with_ignore_list) {
-                        .token = stringifies_expanded.arr.data[i+2], .dont_replace = sstr_vec_copy(dont_replace_list)
+                        .token = stringifies_expanded.data[i+2], .dont_replace = sstr_vec_copy(dont_replace_list)
                 });
                 // Indicate it should be concatenated with the preceding token (which is the left operand)
                 boolean_vec_append(&needs_concat, true);
@@ -446,7 +444,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
                 token_with_ignore_list_vec_append(&replaced_tokens, (struct token_with_ignore_list) {
                         .token = {
                                 .name = SSTR_FROM_LITERAL(""),
-                                .after_whitespace = stringifies_expanded.arr.data[i].after_whitespace,
+                                .after_whitespace = stringifies_expanded.data[i].after_whitespace,
                                 // type intentionally omitted
                         },
                         .dont_replace = sstr_vec_copy(dont_replace_list)
@@ -455,7 +453,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
                 boolean_vec_append(&needs_concat, true);
             } else {
                 // Like with the left operand, if it's a non-empty argument, we add all the tokens from the given argument
-                token_with_ignore_list_vec_append_all_arr(&replaced_tokens, use_info.args.data[right_operand_arg_i].data, use_info.args.data[right_operand_arg_i].len);
+                token_with_ignore_list_vec_append_all_harr(&replaced_tokens, use_info.args.data[right_operand_arg_i]);
                 // The first token of the right operand's expansion should be concatenated with the left operand
                 boolean_vec_append(&needs_concat, true);
                 // The rest should not
@@ -465,7 +463,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
             }
             dont_add_left_operand = true;
             i += 2;
-        } else if (i == 0 && token_is_str(stringifies_expanded.arr.data[i], "##")) {
+        } else if (i == 0 && token_is_str(stringifies_expanded.data[i], "##")) {
             preprocessor_fatal_error(0, 0, 0, "## can't appear at beginning or end of macro");
         } else if (dont_add_left_operand) {
             i++;
@@ -473,20 +471,20 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
         } else {
             // This is a normal token, i.e. not an operand to the ## operator, and not the ## operator itself; and the same for the # operator, since stringifications were expanded earlier
             // Figure out whether it's a macro argument, and if so, what its index is
-            ssize_t arg_index = get_arg_index(stringifies_expanded.arr.data[i].name, macro_info);
+            const ssize_t arg_index = get_arg_index(stringifies_expanded.data[i].name, macro_info);
             if (arg_index == -1) {
                 // If it's not an argument, just add it to the tokens list
                 token_with_ignore_list_vec_append(&replaced_tokens, (struct token_with_ignore_list) {
-                    .token = stringifies_expanded.arr.data[i], .dont_replace = sstr_vec_copy(dont_replace_list) }
+                    .token = stringifies_expanded.data[i], .dont_replace = sstr_vec_copy(dont_replace_list) }
                 );
                 // It isn't the right operand of the ## operator, so it shouldn't be concatenated with the preceding token
                 boolean_vec_append(&needs_concat, false);
             } else {
                 // If it's an argument, add the given argument's tokens to the list
-                token_with_ignore_list_vec new_arg = replace_arg(use_info.args.data[arg_index], macro_map, use_info.macro_name, use_info.dont_replace);
-                token_with_ignore_list_vec_append_all(&replaced_tokens, new_arg);
+                const token_with_ignore_list_harr new_arg = replace_arg(use_info.args.data[arg_index], macro_map, use_info.macro_name, use_info.dont_replace);
+                token_with_ignore_list_vec_append_all_harr(&replaced_tokens, new_arg);
                 // None of its tokens are the right operand of the ## operator, so they shouldn't be concatenated with the preceding token
-                for (size_t j = 0; j < new_arg.arr.len; j++) {
+                for (size_t j = 0; j < new_arg.len; j++) {
                     boolean_vec_append(&needs_concat, false);
                 }
             }
@@ -499,10 +497,10 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
     token_with_ignore_list_vec out = token_with_ignore_list_vec_new(0);
     for (size_t i = 0; i < replaced_tokens.arr.len; i++) {
         if (needs_concat.arr.data[i]) {
-            sstr concat_result = concatenate(out.arr.data[out.arr.len - 1].token.name, replaced_tokens.arr.data[i].token.name);
-            bool token_valid = is_valid_token(concat_result, EXCLUDE_HEADER_NAME);
+            const sstr concat_result = concatenate(out.arr.data[out.arr.len - 1].token.name, replaced_tokens.arr.data[i].token.name);
+            const bool token_valid = is_valid_token(concat_result, EXCLUDE_HEADER_NAME);
             if (!token_valid && concat_result.len != 0) {
-                preprocessor_fatal_error(0, 0, 0, "concat result %.*s is not a valid token", (int)concat_result.len, concat_result.data);
+                preprocessor_fatal_error(0, 0, 0, "concat result %.*s is not a valid token", (int)concat_result.len, (const char*)concat_result.data);
             }
             // If a token needs to be concatenated with the preceding token, then we retroactively modify the preceding token
             out.arr.data[out.arr.len - 1].token.name = concat_result;
@@ -517,62 +515,62 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
     return out;
 }
 
-static token_with_ignore_list_vec replace_macros_helper(token_with_ignore_list_vec tokens, size_t scan_start, sstr_macro_args_and_body_map macro_map) {
+static token_with_ignore_list_harr replace_macros_helper(const token_with_ignore_list_harr tokens, const size_t scan_start, const sstr_macro_args_and_body_map macro_map) {
     token_with_ignore_list_vec out = token_with_ignore_list_vec_new(0);
 
     bool ignore_replacements = false;
-    size_t new_scan_start = tokens.arr.len;
-    for (size_t i = 0; i < tokens.arr.len;) {
-        if (sstr_macro_args_and_body_map_contains(&macro_map, tokens.arr.data[i].token.name)
+    size_t new_scan_start = tokens.len;
+    for (size_t i = 0; i < tokens.len;) {
+        if (sstr_macro_args_and_body_map_contains(&macro_map, tokens.data[i].token.name)
         && !ignore_replacements
-        && !sstr_vec_contains(tokens.arr.data[i].dont_replace, tokens.arr.data[i].token.name)
+        && !sstr_harr_contains(tokens.data[i].dont_replace.arr, tokens.data[i].token.name)
         && i >= scan_start) {
-            struct macro_args_and_body macro_info = sstr_macro_args_and_body_map_get(&macro_map, tokens.arr.data[i].token.name);
-            struct macro_use_info use_info = get_macro_use_info(tokens, i, macro_info);
+            const struct macro_args_and_body macro_info = sstr_macro_args_and_body_map_get(&macro_map, tokens.data[i].token.name);
+            const struct macro_use_info use_info = get_macro_use_info(tokens, i, macro_info);
             if (!use_info.is_valid) {
-                token_with_ignore_list_vec_append(&out, tokens.arr.data[i]);
+                token_with_ignore_list_vec_append(&out, tokens.data[i]);
                 i++;
                 continue;
             }
-            token_with_ignore_list_vec replaced_tokens = get_replacement(macro_info, use_info, macro_map);
+            const token_with_ignore_list_vec replaced_tokens = get_replacement(macro_info, use_info, macro_map);
             token_with_ignore_list_vec_append_all(&out, replaced_tokens);
             new_scan_start = i;
             i = use_info.end_index;
             ignore_replacements = true;
         } else {
-            token_with_ignore_list_vec_append(&out, tokens.arr.data[i]);
+            token_with_ignore_list_vec_append(&out, tokens.data[i]);
             i++;
         }
     }
-    if (new_scan_start == tokens.arr.len) {
-        return out;
+    if (new_scan_start == tokens.len) {
+        return out.arr;
     } else {
-        return replace_macros_helper(out, new_scan_start, macro_map);
+        return replace_macros_helper(out.arr, new_scan_start, macro_map);
     }
 }
 
-pp_token_vec replace_macros(pp_token_vec tokens, sstr_macro_args_and_body_map macro_map) {
-    token_with_ignore_list_vec tokens_with_ignore_list = token_with_ignore_list_vec_new(tokens.arr.len);
-    for (size_t i = 0; i < tokens.arr.len; i++) {
-        if (!token_is_str(tokens.arr.data[i], "\n")) {
+pp_token_harr replace_macros(const pp_token_harr tokens, const sstr_macro_args_and_body_map macro_map) {
+    token_with_ignore_list_vec tokens_with_ignore_list = token_with_ignore_list_vec_new(tokens.len);
+    for (size_t i = 0; i < tokens.len; i++) {
+        if (!token_is_str(tokens.data[i], "\n")) {
             token_with_ignore_list_vec_append(&tokens_with_ignore_list, (struct token_with_ignore_list) {
-                    .token = tokens.arr.data[i],
+                    .token = tokens.data[i],
                     .dont_replace = sstr_vec_new(0)
             });
         }
     }
-    token_with_ignore_list_vec replaced = replace_macros_helper(tokens_with_ignore_list, 0, macro_map);
-    pp_token_vec out = pp_token_vec_new(replaced.arr.len);
-    for (size_t i = 0; i < replaced.arr.len; i++) {
-        if (replaced.arr.data[i].token.name.len > 0) { // remove placemarkers
-            pp_token_vec_append(&out, replaced.arr.data[i].token);
+    const token_with_ignore_list_harr replaced = replace_macros_helper(tokens_with_ignore_list.arr, 0, macro_map);
+    pp_token_vec out = pp_token_vec_new(replaced.len);
+    for (size_t i = 0; i < replaced.len; i++) {
+        if (replaced.data[i].token.name.len > 0) { // remove placemarkers
+            pp_token_vec_append(&out, replaced.data[i].token);
         }
     }
-    return out;
+    return out.arr;
 }
 
 
-void reconstruct_macro_use(struct macro_use_info info) {
+void reconstruct_macro_use(const struct macro_use_info info) {
     // Print the macro name
     printf("Macro use: %.*s", (int)info.macro_name.len, (const char*)info.macro_name.data);
 
@@ -600,7 +598,7 @@ void reconstruct_macro_use(struct macro_use_info info) {
 
 void print_macros(const sstr_macro_args_and_body_map *const macros) {
     for (size_t i = 0; i < macros->n_buckets; i++) {
-        NODE_T(sstr, macro_args_and_body) *node = macros->buckets[i];
+        const NODE_T(sstr, macro_args_and_body) *node = macros->buckets[i];
         while (node != NULL) {
             printf("Macro: ");
             for (size_t j = 0; j < node->key.len; j++) {

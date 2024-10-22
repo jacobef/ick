@@ -5,7 +5,7 @@
 #include "data_structures/vector.h"
 #include "debug/color_print.h"
 
-static erule_p_vec get_earley_rules(const struct production_rule *const rule, const erule_p_harr *const origin) {
+static erule_p_harr get_earley_rules(const struct production_rule *const rule, const erule_p_harr *const origin) {
     erule_p_vec out = erule_p_vec_new(rule->alternatives.len);
     for (size_t i = 0; i < rule->alternatives.len; i ++) {
         struct earley_rule *const to_append = MALLOC(sizeof(struct earley_rule));
@@ -14,7 +14,7 @@ static erule_p_vec get_earley_rules(const struct production_rule *const rule, co
         };
         erule_p_vec_append(&out, to_append);
     }
-    return out;
+    return out.arr;
 }
 
 static void print_rule(struct earley_rule rule);
@@ -26,14 +26,14 @@ static struct symbol symbol_after_dot(const struct earley_rule rule) {
     return rule.rhs.symbols.data[rule.dot];
 }
 
-static erule_p_vec predict(const struct earley_rule rule, const erule_p_harr *const rule_chart) {
+static erule_p_harr predict(const struct earley_rule rule, const erule_p_harr *const rule_chart) {
     if (rule.dot == rule.rhs.symbols.len || symbol_after_dot(rule).is_terminal) {
-        return erule_p_vec_new(0);
+        return (erule_p_harr) { .data = NULL, .len = 0 };
     } else {
-        const erule_p_vec out = get_earley_rules(symbol_after_dot(rule).val.rule, rule_chart);
-        for (size_t i = 0; i < out.arr.len; i++) {
+        const erule_p_harr out = get_earley_rules(symbol_after_dot(rule).val.rule, rule_chart);
+        for (size_t i = 0; i < out.len; i++) {
             print_with_color(TEXT_COLOR_LIGHT_BLUE, "{predictor} ");
-            print_rule(*out.arr.data[i]);
+            print_rule(*out.data[i]);
             print_with_color(TEXT_COLOR_LIGHT_CYAN, " {source:} ");
             print_rule(rule);
             printf("\n");
@@ -42,12 +42,12 @@ static erule_p_vec predict(const struct earley_rule rule, const erule_p_harr *co
     }
 }
 
-static bool rule_is_duplicate(const erule_p_vec rules, const struct earley_rule rule) {
-    for (size_t i = 0; i < rules.arr.len; i++) {
-        if (rule.lhs == rules.arr.data[i]->lhs // Left hand rule is the same
-        && rule.rhs.tag == rules.arr.data[i]->rhs.tag  // Alternative is the same
-        && rule.dot == rules.arr.data[i]->dot // Dot is in the same place
-        && rule.origin_chart == rules.arr.data[i]->origin_chart // Same origin
+static bool rule_is_duplicate(const erule_p_harr rules, const struct earley_rule rule) {
+    for (size_t i = 0; i < rules.len; i++) {
+        if (rule.lhs == rules.data[i]->lhs // Left hand rule is the same
+        && rule.rhs.tag == rules.data[i]->rhs.tag  // Alternative is the same
+        && rule.dot == rules.data[i]->dot // Dot is in the same place
+        && rule.origin_chart == rules.data[i]->origin_chart // Same origin
         ) {
             return true;
         }
@@ -56,11 +56,11 @@ static bool rule_is_duplicate(const erule_p_vec rules, const struct earley_rule 
 }
 
 static void recursively_predict(const struct earley_rule rule, erule_p_vec *const rule_chart) {
-    const erule_p_vec first_predictions = predict(rule, &rule_chart->arr);
-    for (size_t i = 0; i < first_predictions.arr.len; i++) {
+    const erule_p_harr first_predictions = predict(rule, &rule_chart->arr);
+    for (size_t i = 0; i < first_predictions.len; i++) {
         struct earley_rule *const predict_from = MALLOC(sizeof(struct earley_rule));
-        *predict_from = *first_predictions.arr.data[i];
-        if (!rule_is_duplicate(*rule_chart, *predict_from)) {
+        *predict_from = *first_predictions.data[i];
+        if (!rule_is_duplicate(rule_chart->arr, *predict_from)) {
             erule_p_vec_append(rule_chart, predict_from);
             recursively_predict(*predict_from, rule_chart);
         }
@@ -99,7 +99,7 @@ static void complete(struct earley_rule *const rule, erule_p_vec *const out) {
                     .lhs=possible_origin.lhs, .rhs=possible_origin.rhs, .dot=possible_origin.dot + 1,
                     .origin_chart=possible_origin.origin_chart, .completed_from=new_completed_from.arr
             };
-            if (!rule_is_duplicate(*out, *to_append)) {
+            if (!rule_is_duplicate(out->arr, *to_append)) {
                 erule_p_vec_append(out, to_append);
                 print_with_color(TEXT_COLOR_LIGHT_GREEN, "{completer} ");
                 print_rule(*to_append);
@@ -179,7 +179,7 @@ static void print_symbol(const struct symbol sym) {
                 if (strcmp("\n", (const char *)sym.val.terminal.matcher.str) == 0) {
                     print_with_color(TEXT_COLOR_GREEN, "[newline] ");
                 } else {
-                    print_with_color(TEXT_COLOR_GREEN, "%s ", sym.val.terminal.matcher.str);
+                    print_with_color(TEXT_COLOR_GREEN, "%s ", (const char*)sym.val.terminal.matcher.str);
                 }
                 break;
         }
@@ -219,7 +219,7 @@ static void print_token(const struct preprocessing_token token) {
     }
 }
 
-erule_p_harr_p_harr make_charts(const pp_token_vec tokens, const struct production_rule *const start_rule) {
+erule_p_harr_p_harr make_charts(const pp_token_harr tokens, const struct production_rule *const start_rule) {
     erule_p_harr_p_vec out = erule_p_harr_p_vec_new(0);
 
     erule_p_vec *const initial_chart = MALLOC(sizeof(struct erule_p_vec));
@@ -244,14 +244,14 @@ erule_p_harr_p_harr make_charts(const pp_token_vec tokens, const struct producti
     }
 
     const erule_p_vec *old_chart = initial_chart;
-    for (size_t i = 0; i < tokens.arr.len; i++) {
-        const struct preprocessing_token token = tokens.arr.data[i];
+    for (size_t i = 0; i < tokens.len; i++) {
+        const struct preprocessing_token token = tokens.data[i];
         print_with_color(TEXT_COLOR_RED, "\nChart after processing token %zu (", i);
         set_color(TEXT_COLOR_GREEN);
         print_token(token);
         clear_color();
         print_with_color(TEXT_COLOR_RED, "):\n");
-        erule_p_vec *const new_chart = next_chart(old_chart, tokens.arr.data[i]);
+        erule_p_vec *const new_chart = next_chart(old_chart, tokens.data[i]);
         erule_p_harr_p_vec_append(&out, &new_chart->arr);
         old_chart = new_chart;
     }
@@ -321,12 +321,12 @@ void print_tree(const struct earley_rule *const root, const size_t indent) {
     }
 }
 
-static pp_token_vec get_text_line_tokens(const struct earley_rule text_line_rule) {
+static pp_token_harr get_text_line_tokens(const struct earley_rule text_line_rule) {
     pp_token_vec text_line_tokens = pp_token_vec_new(0);
 
     const struct earley_rule *const tokens_not_starting_with_hashtag_opt_rule = text_line_rule.completed_from.data[0];
     if (tokens_not_starting_with_hashtag_opt_rule->rhs.tag == OPT_NONE) {
-        return text_line_tokens;
+        return text_line_tokens.arr;
     }
     const struct earley_rule *const tokens_not_starting_with_hashtag_rule = tokens_not_starting_with_hashtag_opt_rule->completed_from.data[0];
 
@@ -335,7 +335,7 @@ static pp_token_vec get_text_line_tokens(const struct earley_rule text_line_rule
         pp_token_vec_append(&text_line_tokens, non_hashtag_rule->rhs.symbols.data[0].val.terminal.token);
     }
 
-    return text_line_tokens;
+    return text_line_tokens.arr;
 }
 
 static void deal_with_macros(const struct earley_rule root) {
@@ -381,8 +381,8 @@ static void deal_with_macros(const struct earley_rule root) {
             }
             case GROUP_PART_TEXT: {
                 const struct earley_rule text_line_rule = *group_part_rule.completed_from.data[0];
-                const pp_token_vec text_line_tokens = replace_macros(get_text_line_tokens(text_line_rule), macros);
-                pp_token_vec_append_all(&text_section, text_line_tokens);
+                const pp_token_harr text_line_tokens = replace_macros(get_text_line_tokens(text_line_rule), macros);
+                pp_token_vec_append_all_harr(&text_section, text_line_tokens);
                 break;
             }
             case GROUP_PART_IF: {
@@ -394,17 +394,17 @@ static void deal_with_macros(const struct earley_rule root) {
             }
         }
     }
-    print_tokens(text_section, true);
+    print_tokens(text_section.arr, true);
 }
 
-void test_parser(const pp_token_vec tokens) {
+void test_parser(const pp_token_harr tokens) {
     const erule_p_harr_p_harr charts = make_charts(tokens, &tr_preprocessing_file);
     for (size_t i = 0; i < charts.len; i++) {
         print_with_color(TEXT_COLOR_LIGHT_RED, "Chart %zu:\n", i);
         print_chart(charts.data[i]);
     }
     printf("\n");
-    struct earley_rule *const root = get_tree_root(charts, &tr_preprocessing_file);
+    const struct earley_rule *const root = get_tree_root(charts, &tr_preprocessing_file);
     if (root == NULL) {
         printf("No tree to print; parsing failed.\n");
         return;

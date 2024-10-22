@@ -3,7 +3,6 @@
 
 #include <stdlib.h>
 #include <stddef.h>
-#include <stdbool.h>
 #include "debug/reminder.h"
 #include "debug/malloc.h"
 #include "data_structures/heap_arr.h"

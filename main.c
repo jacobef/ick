@@ -7,7 +7,6 @@
 #include "preprocessor/escaped_newlines.h"
 #include "preprocessor/pp_token.h"
 #include "preprocessor/parser.h"
-#include "debug/color_print.h"
 
 char *ick_progname;
 
@@ -17,7 +16,7 @@ int main(int argc, char *argv[]) {
 #endif
     if (argc == 0 || (argv[0][0] == '\0')) ick_progname = "ick";
     else { // set ick_progname to the basename of argv[0]
-        size_t argv0_len = strlen(argv[0]);
+        const size_t argv0_len = strlen(argv[0]);
         ick_progname = MALLOC(argv0_len + 1);
         const char *last_path_sep;
         for (last_path_sep = argv[0]+argv0_len-1;
@@ -47,27 +46,25 @@ int main(int argc, char *argv[]) {
     FILE *output_file = fopen(output_fname, "w");
     FREE(output_fname);
 
-    size_t input_len = get_filesize(input_file);
+    const size_t input_len = get_filesize(input_file);
     unsigned char *input_chars = MALLOC(input_len+1);
     fread(input_chars, sizeof(unsigned char), input_len, input_file);
     fclose(input_file);
     input_chars[input_len] = '\n'; // too much of a pain without this
 
-    struct trigraph_replacement_info trigraph_replacement = replace_trigraphs(
+    const struct trigraph_replacement_info trigraph_replacement = replace_trigraphs(
             (sstr){ .data = input_chars, .len = input_len + 1 }
     );
-    struct escaped_newlines_replacement_info logical_lines = rm_escaped_newlines(trigraph_replacement.result);
+    const struct escaped_newlines_replacement_info logical_lines = rm_escaped_newlines(trigraph_replacement.result);
     fwrite(logical_lines.result.data, sizeof(char), logical_lines.result.len, output_file);
 
     fclose(output_file);
 
-    pp_token_vec tokens = get_pp_tokens(logical_lines.result);
+    const pp_token_harr tokens = get_pp_tokens(logical_lines.result);
 //    print_tokens(tokens);
     
     test_parser(tokens);
 
-
-    pp_token_vec_free_internals(&tokens);
     FREE(input_chars);
     FREE(trigraph_replacement.result.data);
     FREE(logical_lines.result.data);

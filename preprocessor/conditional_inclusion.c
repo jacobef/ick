@@ -187,23 +187,14 @@ struct parsed_char_constant {
 };
 
 static struct parsed_char_constant parse_char_constant(const sstr char_constant) {
-    bool is_wide;
-    ssize_t i;
-    if (char_constant.data[0] == 'L') {
-        is_wide = true;
-        i = 2;
-    } else {
-        is_wide = false;
-        i = 1;
-    }
+    const bool is_wide = char_constant.data[0] == 'L';
+    ssize_t i = char_constant.data[0] == 'L' ? 2 : 1;
     sstr_vec c_chars = sstr_vec_new(0);
     while (true) {
         const size_t char_start = (size_t)i;
         i = scan_c_char(char_constant, (size_t)i);
         if (i == -1) break;
-        else {
-            sstr_vec_append(&c_chars, slice(char_constant, char_start, (size_t)i));
-        }
+        sstr_vec_append(&c_chars, slice(char_constant, char_start, (size_t)i));
     }
     return (struct parsed_char_constant) {
         .c_chars = c_chars.arr, .is_wide = is_wide
@@ -213,7 +204,7 @@ static struct parsed_char_constant parse_char_constant(const sstr char_constant)
 static int eval_char_constant(const struct earley_rule rule) {
     const sstr rule_val = rule.rhs.symbols.data[0].val.terminal.token.name;
     uchar_vec rule_val_vec = uchar_vec_new(0);
-    uchar_vec_append_all_arr(&rule_val_vec, rule_val.data, rule_val.len);
+    uchar_vec_append_all_harr(&rule_val_vec, rule_val);
     const struct parsed_char_constant parse = parse_char_constant(rule_val_vec.arr);
 
     int out = 0;
@@ -292,7 +283,7 @@ static struct maybe_signed_intmax eval_int_constant(const struct earley_rule rul
     const sstr rule_val = rule.rhs.symbols.data[0].val.terminal.token.name;
     const struct parsed_int_constant parse = parse_int_constant(rule_val);
     target_uintmax_t result = 0;
-    target_uintmax_t base =
+    const target_uintmax_t base =
         parse.type == INT_CONSTANT_OCTAL ? 8 : (
         parse.type == INT_CONSTANT_DECIMAL ? 10
         : 16 // INT_CONSTANT_HEX
@@ -318,7 +309,7 @@ static struct maybe_signed_intmax eval_constant(const struct earley_rule rule) {
             preprocessor_fatal_error(0, 0, 0, "enum constant should have been replaced with 0");
         case CONSTANT_CHARACTER: {
             const int val = eval_char_constant(*rule.completed_from.data[0]);
-            print_with_color(TEXT_COLOR_LIGHT_RED, "char constant evaluates to 0x%X\n", val);
+            print_with_color(TEXT_COLOR_LIGHT_RED, "char constant evaluates to %d\n", val);
             return msi_s(val);
         }
     }

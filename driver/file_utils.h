@@ -1,9 +1,7 @@
 #ifndef ICK_FILE_UTILS_H
 #define ICK_FILE_UTILS_H
 
-#include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 
 #define ASM_EXT ".s"
 #define PREPROCESSED_EXT ".i"

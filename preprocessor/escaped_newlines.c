@@ -1,8 +1,6 @@
 #include <stdlib.h>
 #include "escaped_newlines.h"
 
-#include <string.h>
-
 #include "debug/malloc.h"
 
 struct escaped_newlines_replacement_info rm_escaped_newlines(const sstr in) {

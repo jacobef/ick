@@ -15,7 +15,7 @@ static void driver_message_prefix(FILE *stream) {
     fprintf(stream, "%s: ", ick_progname);
 }
 
-__attribute__((format(printf, 1, 2)))
+__attribute__((format(printf, 1, 2), noreturn))
 void driver_error(const char *msg_fmt, ...) {
     driver_message_prefix(stderr);
     fprintf(stderr, "error: ");

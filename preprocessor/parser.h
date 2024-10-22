@@ -2,11 +2,9 @@
 #define ICK_PARSER_H
 
 #include "data_structures/vector.h"
-#include "preprocessor/detector.h"
 #include "preprocessor/pp_token.h"
 #include <stddef.h>
 #include <stdbool.h>
-#include <string.h>
 #include <ctype.h>
 
 enum terminal_symbol_type {
@@ -62,11 +60,11 @@ typedef erule_p_vec *erule_p_vec_p;
 typedef erule_p_harr *erule_p_harr_p;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(erule_p_harr_p)
 DEFINE_VEC_TYPE_AND_FUNCTIONS(erule_p_vec_p)
-erule_p_harr_p_harr make_charts(pp_token_vec tokens, const struct production_rule *start_rule);
+erule_p_harr_p_harr make_charts(pp_token_harr tokens, const struct production_rule *start_rule);
 
 void print_chart(const erule_p_harr *chart);
 void print_tree(const struct earley_rule *root, size_t indent);
-void test_parser(pp_token_vec tokens);
+void test_parser(pp_token_harr tokens);
 
 
 extern const struct production_rule tr_preprocessing_file;

@@ -53,24 +53,19 @@ static struct universal_character_name_detector detect_universal_character_name(
 
     if (detector.is_first_char && c == '\\') {
         detector.looking_for_uU = true;
-    }
-    else if (detector.is_first_char) {
+    } else if (detector.is_first_char) {
         detector.status = IMPOSSIBLE;
-    }
-    else if (detector.looking_for_uU && c == 'u') {
+    } else if (detector.looking_for_uU && c == 'u') {
         detector.looking_for_uU = false;
         detector.looking_for_digits = true;
         detector.expected_digits = 4;
-    }
-    else if (detector.looking_for_uU && c == 'U') {
+    } else if (detector.looking_for_uU && c == 'U') {
         detector.looking_for_uU = false;
         detector.looking_for_digits = true;
         detector.expected_digits = 8;
-    }
-    else if (detector.looking_for_uU) {
+    } else if (detector.looking_for_uU) {
         detector.status = IMPOSSIBLE;
-    }
-    else if (detector.looking_for_digits && isxdigit(c)) {
+    } else if (detector.looking_for_digits && isxdigit(c)) {
         detector.n_digits++;
         if (detector.n_digits == detector.expected_digits) {
             detector.status = MATCH;
@@ -79,8 +74,7 @@ static struct universal_character_name_detector detect_universal_character_name(
             detector.is_first_char = true;
             detector.n_digits = 0;
         }
-    }
-    else if (detector.looking_for_digits) {
+    } else if (detector.looking_for_digits) {
         detector.status = IMPOSSIBLE;
     }
 
@@ -171,23 +165,18 @@ static struct escape_sequence_detector detect_escape_sequence(struct escape_sequ
 
     if (detector.next_char_invalid) {
         detector.status = IMPOSSIBLE;
-    }
-    else if (detector.is_first_char && c == '\\') {
-    }
-    else if (detector.is_second_char && (c == '\'' || c == '"' || c == '?' || c == '\\' ||
+    } else if (detector.is_first_char && c == '\\') {
+    } else if (detector.is_second_char && (c == '\'' || c == '"' || c == '?' || c == '\\' ||
                 c == 'a' || c == 'b' || c == 'f' || c == 'n' || c == 'r' || c == 't' || c == 'v')) {
         detector.status = MATCH;
         detector.next_char_invalid = true;
-    }
-    else if (detector.is_second_char && c == 'x') {
+    } else if (detector.is_second_char && c == 'x') {
         detector.looking_for_hex = true;
-    }
-    else if (detector.is_second_char && (c == 'u' || c == 'U')) {
+    } else if (detector.is_second_char && (c == 'u' || c == 'U')) {
         detector.looking_for_ucn = true;
         detector.ucn_detector = detect_universal_character_name(detector.ucn_detector, '\\');
         detector.ucn_detector = detect_universal_character_name(detector.ucn_detector, c);
-    }
-    else if (detector.looking_for_ucn) {
+    } else if (detector.looking_for_ucn) {
         detector.ucn_detector = detect_universal_character_name(detector.ucn_detector, c);
         if (detector.ucn_detector.status == IMPOSSIBLE) {
             detector.status = IMPOSSIBLE;
@@ -196,20 +185,16 @@ static struct escape_sequence_detector detect_escape_sequence(struct escape_sequ
             detector.status = MATCH;
             detector.looking_for_ucn = false;
         }
-    }
-    else if (detector.is_second_char && is_octal_digit(c)) {
+    } else if (detector.is_second_char && is_octal_digit(c)) {
         detector.n_octals++;
         detector.looking_for_octal = true;
         detector.status = MATCH;
-    }
-    else if (detector.looking_for_octal && is_octal_digit(c)) {
+    } else if (detector.looking_for_octal && is_octal_digit(c)) {
         detector.n_octals++;
         if (detector.n_octals == 3) detector.next_char_invalid = true;
-    }
-    else if (detector.looking_for_hex && isxdigit(c)) {
+    } else if (detector.looking_for_hex && isxdigit(c)) {
         detector.status = MATCH;
-    }
-    else {
+    } else {
         detector.status = IMPOSSIBLE;
     }
 
@@ -244,36 +229,27 @@ static struct char_const_str_literal_detector detect_char_const_str_literal(stru
 
     if (detector.is_first_char && c == 'L') {
         detector.looking_for_open_quote = true;
-    }
-    else if (detector.looking_for_open_quote && c == quote) {
+    } else if (detector.looking_for_open_quote && c == quote) {
         detector.in_literal = true;
         detector.looking_for_open_quote = false;
         detector.just_opened = true;
-    }
-    else if (detector.looking_for_open_quote) {
+    } else if (detector.looking_for_open_quote) {
         detector.status = IMPOSSIBLE;
-    }
-    else if (detector.is_first_char) {
+    } else if (detector.is_first_char) {
         detector.status = IMPOSSIBLE;
-    }
-    else if (detector.in_literal && !detector.looking_for_esc_seq && c == '\\') {
+    } else if (detector.in_literal && !detector.looking_for_esc_seq && c == '\\') {
         detector.looking_for_esc_seq = true;
         detector.esc_seq_detector = initial_esc_seq_detector;
         detector.esc_seq_detector = detect_escape_sequence(detector.esc_seq_detector, c);
-    }
-    else if (detector.in_literal && !detector.looking_for_esc_seq && !in_src_char_set(c)) {
+    } else if (detector.in_literal && !detector.looking_for_esc_seq && !in_src_char_set(c)) {
         detector.status = IMPOSSIBLE;
-    }
-    else if (c == quote && detector.prev_char != '\\' && detector.looking_for_esc_seq && detector.esc_seq_detector.status == MATCH) {
+    } else if (c == quote && detector.prev_char != '\\' && detector.looking_for_esc_seq && detector.esc_seq_detector.status == MATCH) {
         detector.status = MATCH;
-    }
-    else if (c == quote && detector.prev_char != '\\' && detector.looking_for_esc_seq) {
+    } else if (c == quote && detector.prev_char != '\\' && detector.looking_for_esc_seq) {
         detector.status = IMPOSSIBLE;
-    }
-    else if (c == '\'' && detector.prev_char != '\\' && !detector.is_first_char && detector.just_opened) {
+    } else if (c == '\'' && detector.prev_char != '\\' && !detector.is_first_char && detector.just_opened) {
         detector.status = IMPOSSIBLE;
-    }
-    else if (c == quote && detector.prev_char != '\\') {
+    } else if (c == quote && detector.prev_char != '\\') {
         detector.status = MATCH;
     }
 
@@ -298,8 +274,7 @@ static struct punctuator_detector detect_punctuator(struct punctuator_detector d
     const struct trie *const next_place_in_trie = trie_get_child(detector.place_in_trie, c);
     if (next_place_in_trie == NULL) {
         detector.status = IMPOSSIBLE;
-    }
-    else {
+    } else {
         if (next_place_in_trie->match) detector.status = MATCH;
         else detector.status = INCOMPLETE;
         detector.place_in_trie = next_place_in_trie;
@@ -456,7 +431,7 @@ enum pp_token_type get_token_type_from_str(const sstr token, const enum exclude_
 }
 
 
-pp_token_vec get_pp_tokens(const sstr input) {
+pp_token_harr get_pp_tokens(const sstr input) {
     // TODO:
     // Error on invalid tokens.
     // Currently, it skips over invalid tokens instead of erroring.
@@ -513,15 +488,15 @@ pp_token_vec get_pp_tokens(const sstr input) {
     }
     pp_token_vec_free_internals(&tokens);
 
-    print_tokens(tokens_without_comments, true);
+    print_tokens(tokens_without_comments.arr, true);
 
-    return tokens_without_comments;
+    return tokens_without_comments.arr;
 }
 
-void print_tokens(const pp_token_vec tokens, const bool verbose) {
+void print_tokens(const pp_token_harr tokens, const bool verbose) {
     if (verbose) {
-        for (size_t i = 0; i < tokens.arr.len; i++) {
-            const struct preprocessing_token token = tokens.arr.data[i];
+        for (size_t i = 0; i < tokens.len; i++) {
+            const struct preprocessing_token token = tokens.data[i];
             for (size_t j = 0; j < token.name.len; j++) {
                 if (token.name.data[j] == '\n') {
                     printf("[newline]");
@@ -544,8 +519,8 @@ void print_tokens(const pp_token_vec tokens, const bool verbose) {
     }
 
     // print normally
-    for (size_t i = 0; i < tokens.arr.len; i++) {
-        const struct preprocessing_token token = tokens.arr.data[i];
+    for (size_t i = 0; i < tokens.len; i++) {
+        const struct preprocessing_token token = tokens.data[i];
         if (token.after_whitespace) printf(" ");
         for (size_t j = 0; j < token.name.len; j++) {
             printf("%c", token.name.data[j]);

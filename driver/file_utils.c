@@ -2,7 +2,8 @@
 #include "diagnostics.h"
 #include "debug/malloc.h"
 #include <errno.h>
-#include <limits.h>
+#include <stdint.h>
+#include <string.h>
 
 char *new_fname_ext(const char *fname, const char *new_ext) {
     char *output = MALLOC(strlen(fname) + strlen(new_ext) + 1);

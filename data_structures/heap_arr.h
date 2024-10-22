@@ -13,7 +13,7 @@
 __attribute__((unused))                                         \
 static _type##_harr _type##_harr_copy(_type##_harr arr) {       \
     _type *out_data = MALLOC(sizeof(arr.data[0]) * arr.len);    \
-    memcpy(&out_data, arr.data, sizeof(arr.data[0]) * arr.len); \
+    memcpy(out_data, arr.data, sizeof(arr.data[0]) * arr.len);  \
     return (_type##_harr) { .data = out_data, .len = arr.len }; \
 }
 

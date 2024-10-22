@@ -1,7 +1,7 @@
 #ifndef TEST_DIAGNOSTICS_H
 #define TEST_DIAGNOSTICS_H
 
-#include <stdio.h>
+#include <stddef.h>
 
 __attribute__((format(printf, 4, 5), noreturn))
 void preprocessor_fatal_error(size_t line, size_t first_char, size_t last_char, const char *msg_fmt, ...);

@@ -1,6 +1,5 @@
 #include "trigraphs.h"
 
-#include <string.h>
 #include <stdbool.h>
 #include "data_structures/vector.h"
 
