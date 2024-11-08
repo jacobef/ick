@@ -228,8 +228,9 @@ const struct production_rule tr_if_section = PR_RULE("if-section", false,
 // if-group: # if constant-expression new-line group_opt
 //           # ifdef identifier new-line group_opt
 //           # ifndef identifier new-line group_opt
+// tr_pp_tokens used instead of tr_constant_expression in case it's only a valid constant expression after macro expansion
 const struct production_rule tr_if_group = PR_RULE("if-group", false,
-                                                   ALT(IF_GROUP_IF, T_SYM_STR("#"), T_SYM_STR("if"), NT_SYM(tr_constant_expression), T_SYM_STR("\n"), NT_SYM(tr_group_opt)),
+                                                   ALT(IF_GROUP_IF, T_SYM_STR("#"), T_SYM_STR("if"), NT_SYM(tr_pp_tokens), T_SYM_STR("\n"), NT_SYM(tr_group_opt)),
                                                    ALT(IF_GROUP_IFDEF, T_SYM_STR("#"), T_SYM_STR("ifdef"), NT_SYM(tr_identifier), T_SYM_STR("\n"), NT_SYM(tr_group_opt)),
                                                    ALT(IF_GROUP_IFNDEF, T_SYM_STR("#"), T_SYM_STR("ifndef"), NT_SYM(tr_identifier), T_SYM_STR("\n"), NT_SYM(tr_group_opt)));
 
@@ -241,8 +242,9 @@ const struct production_rule tr_elif_groups = PR_RULE("elif_groups", true,
 const struct production_rule tr_elif_groups_opt = OPT("elif-groups_opt", tr_elif_groups);
 
 // elif-group: # elif constant-expression new-line group_opt
+// tr_pp_tokens used instead of tr_constant_expression in case it's only a valid constant expression after macro expansion
 const struct production_rule tr_elif_group = PR_RULE("elif_group", false,
-                                                     ALT(NO_TAG, T_SYM_STR("#"), T_SYM_STR("elif"), NT_SYM(tr_constant_expression), T_SYM_STR("\n"), NT_SYM(tr_group_opt)));
+                                                     ALT(NO_TAG, T_SYM_STR("#"), T_SYM_STR("elif"), NT_SYM(tr_pp_tokens), T_SYM_STR("\n"), NT_SYM(tr_group_opt)));
 
 const struct production_rule tr_else_group = PR_RULE("else-group", false,
                                                      ALT(NO_TAG, T_SYM_STR("#"), T_SYM_STR("else"), T_SYM_STR("\n"), NT_SYM(tr_group_opt)));

@@ -11,6 +11,6 @@ struct maybe_signed_intmax {
     } val;
     bool is_signed;
 };
-struct earley_rule *eval_if_section(struct earley_rule if_section_rule);
+struct earley_rule *eval_if_section(struct earley_rule if_section_rule, sstr_macro_args_and_body_map macro_map);
 
 #endif //ICK_CONDITIONAL_INCLUSION_H

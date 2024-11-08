@@ -189,7 +189,7 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_har
 
     token_with_ignore_list_harr_vec given_args = token_with_ignore_list_harr_vec_new(0);
     token_with_ignore_list_vec current_arg = token_with_ignore_list_vec_new(0);
-    token_with_ignore_list_vec varargs = token_with_ignore_list_vec_new(0);
+    token_with_ignore_list_vec vararg_tokens = token_with_ignore_list_vec_new(0);
     bool in_varargs = macro_def.accepts_varargs && macro_def.args.len == 0;
     int net_open_parens = 1;
     size_t i = macro_inv_start + 2; // skip the macro name and first open paren
@@ -202,47 +202,58 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_har
                 i++;
                 break;
             }
-        } else if (in_varargs) {
-            token_with_ignore_list_vec_append(&varargs, tokens.data[i]);
         }
-        if (net_open_parens == 1 && token_is_str(tokens.data[i].token, ",")) {
-            // argument-separating comma
-            token_with_ignore_list_harr_vec_append(&given_args, current_arg.arr);
-            if (macro_def.accepts_varargs && given_args.arr.len == macro_def.args.len) {
-                in_varargs = true;
-            }
-            current_arg = token_with_ignore_list_vec_new(0);
+        if (in_varargs) {
+            token_with_ignore_list_vec_append(&vararg_tokens, tokens.data[i]);
         } else {
-            token_with_ignore_list_vec_append(&current_arg, tokens.data[i]);
+            if (net_open_parens == 1 && token_is_str(tokens.data[i].token, ",")) {
+                // argument-separating comma
+                token_with_ignore_list_harr_vec_append(&given_args, current_arg.arr);
+                if (macro_def.accepts_varargs && given_args.arr.len == macro_def.args.len) {
+                    in_varargs = true;
+                }
+                current_arg = token_with_ignore_list_vec_new(0);
+            } else {
+                token_with_ignore_list_vec_append(&current_arg, tokens.data[i]);
+            }
         }
     }
     if (net_open_parens > 0) {
         preprocessor_fatal_error(0, 0, 0, "%d open parens in macro call are unmatched by a closed paren", net_open_parens);
     }
 
-    const bool macro_can_take_one_arg = (macro_def.args.len == 1 && !macro_def.accepts_varargs) || (macro_def.args.len == 0 && macro_def.accepts_varargs);
-    if (current_arg.arr.len > 0
-        || (i >= 2 && token_is_str(tokens.data[i-2].token, ","))
-        || (current_arg.arr.len == 0 && given_args.arr.len == 0 && macro_can_take_one_arg)) {
-        // current_arg.arr.len > 0: non-empty arg at end, e.g. A(x, y)
-        // i >= 2 && token_is_str(tokens.arr.data[i-2], ",")): empty arg at end, e.g. A(x,)
-        // current_arg.arr.len == 0 && given_args.arr.len == 0 && macro_can_take_one_arg: handles empty parens (e.g. X()) for definitions like `#define X()` and `#define X(...)`
+    if (!in_varargs && (
+            current_arg.arr.len > 0 // non-empty arg at end, e.g. A(x, y)
+            || (i >= 2 && token_is_str(tokens.data[i-2].token, ",")) // empty arg at end, e.g. A(x,)
+            || (current_arg.arr.len == 0 && given_args.arr.len == 0 && macro_def.args.len >= 1) // macro that requires at least one non-variadic argument called with empty parens (e.g. `X()` or `X(  )`)
+        )
+    ) {
         token_with_ignore_list_harr_vec_append(&given_args, current_arg.arr);
     }
 
-    if (!macro_def.accepts_varargs && given_args.arr.len != macro_def.args.len) {
+    if (macro_def.accepts_varargs) {
+        if (given_args.arr.len < macro_def.args.len) {
+            // TODO explain in the error why empty parens are (sometimes) treated as 1 argument instead of 0
+            preprocessor_fatal_error(0, 0, 0,
+                "too few args given to variadic macro; expected at least %zu, got %zu", macro_def.args.len + 1, given_args.arr.len);
+        } else if (given_args.arr.len > macro_def.args.len) {
+            preprocessor_fatal_error(0, 0, 0,
+                "(this should never happen) too many args given to variadic macro...?");
+        } else if (!in_varargs) { // given_args.arr.len == macro_def.args.len
+            preprocessor_fatal_error(0, 0, 0,
+                "no variable arguments given to variadic macro");
+        }
+    }
+    if (given_args.arr.len != macro_def.args.len) {
         preprocessor_fatal_error(0, 0, 0,
             "wrong number of args given to macro; expected %zu, got %zu", macro_def.args.len, given_args.arr.len);
-    } else if (macro_def.accepts_varargs && given_args.arr.len < macro_def.args.len + 1) {
-        preprocessor_fatal_error(0, 0, 0,
-            "too few args given to varargs macro; expected at least %zu, got %zu", macro_def.args.len + 1, given_args.arr.len);
     }
 
     return (struct macro_use_info) {
         .macro_name = tokens.data[macro_inv_start].token.name,
         .end_index = i,
         .args = given_args.arr,
-        .vararg_tokens = varargs.arr,
+        .vararg_tokens = vararg_tokens.arr,
         .is_function_like = true,
         .dont_replace = new_dont_replace,
         .is_valid = true

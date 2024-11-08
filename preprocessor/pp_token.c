@@ -488,43 +488,52 @@ pp_token_harr get_pp_tokens(const sstr input) {
     }
     pp_token_vec_free_internals(&tokens);
 
-    print_tokens(tokens_without_comments.arr, true);
+    print_tokens(stdout, tokens_without_comments.arr, false, true);
 
     return tokens_without_comments.arr;
 }
 
-void print_tokens(const pp_token_harr tokens, const bool verbose) {
+void print_tokens(FILE *file, const pp_token_harr tokens, const bool ignore_whitespace, const bool verbose) {
     if (verbose) {
         for (size_t i = 0; i < tokens.len; i++) {
             const struct preprocessing_token token = tokens.data[i];
             for (size_t j = 0; j < token.name.len; j++) {
                 if (token.name.data[j] == '\n') {
-                    printf("[newline]");
+                    fprintf(file, "[newline]");
                 } else {
-                    printf("%c", token.name.data[j]);
+                    fprintf(file, "%c", token.name.data[j]);
                 }
             }
-            printf(" (");
-            if (token.type == HEADER_NAME) printf("header name");
-            else if (token.type == IDENTIFIER) printf("identifier");
-            else if (token.type == PP_NUMBER) printf("preprocessing number");
-            else if (token.type == CHARACTER_CONSTANT) printf("character constant");
-            else if (token.type == STRING_LITERAL) printf("string literal");
-            else if (token.type == PUNCTUATOR) printf("punctuator");
-            else if (token.type == SINGLE_CHAR) printf("single character");
-            printf(")");
-            if (token.after_whitespace) printf(" (after whitespace)");
-            printf("\n");
+            fprintf(file, " (");
+            if (token.type == HEADER_NAME) fprintf(file, "header name");
+            else if (token.type == IDENTIFIER) fprintf(file, "identifier");
+            else if (token.type == PP_NUMBER) fprintf(file, "preprocessing number");
+            else if (token.type == CHARACTER_CONSTANT) fprintf(file, "character constant");
+            else if (token.type == STRING_LITERAL) fprintf(file, "string literal");
+            else if (token.type == PUNCTUATOR) fprintf(file, "punctuator");
+            else if (token.type == SINGLE_CHAR) fprintf(file, "single character");
+            fprintf(file, ")");
+            if (token.after_whitespace && !ignore_whitespace) fprintf(file, " (after whitespace)");
+            fprintf(file, "\n");
         }
     }
 
     // print normally
+    ssize_t indent = 0;
     for (size_t i = 0; i < tokens.len; i++) {
         const struct preprocessing_token token = tokens.data[i];
-        if (token.after_whitespace) printf(" ");
-        for (size_t j = 0; j < token.name.len; j++) {
-            printf("%c", token.name.data[j]);
+        if (!ignore_whitespace && token.after_whitespace) fprintf(file, " ");
+        fprintf(file, "%.*s", (int)token.name.len, (char*)token.name.data);
+        if (ignore_whitespace) fprintf(file, " ");
+        if (token_is_str(token, "{")) indent++;
+        if (token_is_str(token, "}") && indent > 0) indent--;
+        if (token_is_str(token, ";") || token_is_str(token, "{") || token_is_str(token, "}")) {
+            fprintf(file, "\n");
+            bool next_token_is_closing_brace = i != tokens.len - 1 && token_is_str(tokens.data[i+1], "}");
+            for (size_t j = 0; j < (next_token_is_closing_brace ? indent - 1 : indent); j++) {
+                fprintf(file, "\t");
+            }
         }
     }
-    printf("\n");
+    fprintf(file, "\n");
 }

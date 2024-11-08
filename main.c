@@ -56,14 +56,10 @@ int main(int argc, char *argv[]) {
             (sstr){ .data = input_chars, .len = input_len + 1 }
     );
     const struct escaped_newlines_replacement_info logical_lines = rm_escaped_newlines(trigraph_replacement.result);
-    fwrite(logical_lines.result.data, sizeof(char), logical_lines.result.len, output_file);
-
-    fclose(output_file);
-
     const pp_token_harr tokens = get_pp_tokens(logical_lines.result);
-//    print_tokens(tokens);
-    
-    test_parser(tokens);
+    const struct earley_rule *const parse_root = parse_full_file(tokens);
+    const pp_token_harr preprocessed_tokens = preprocess_full_file_tree(parse_root);
+    print_tokens(output_file, preprocessed_tokens, true, false);
 
     FREE(input_chars);
     FREE(trigraph_replacement.result.data);

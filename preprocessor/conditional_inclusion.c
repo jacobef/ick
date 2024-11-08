@@ -41,7 +41,6 @@ if (!(msi1).is_signed && !(msi2).is_signed) {               \
 }                                                           \
 } while (0)
 
-
 static unsigned char get_ascii_value(const unsigned char c) {
     // TODO hardcode all possible values so this doesn't depend on the compiler
     return c;
@@ -291,7 +290,6 @@ static struct maybe_signed_intmax eval_int_constant(const struct earley_rule rul
     for (size_t i = 0; i < parse.digits.len; i++) {
         result += (target_uintmax_t)get_hex_digit_value(parse.digits.data[i]) * impow(base, parse.digits.len - i - 1);
     }
-    print_with_color(TEXT_COLOR_LIGHT_RED, "int constant evalutes to %" PRIuMAX "\n", result);
     if (!parse.is_signed || result > impow(2, sizeof(target_intmax_t)*8 - 1) - 1) {
         return (struct maybe_signed_intmax) { .is_signed = true, .val.unsignd = result };
     } else {
@@ -337,7 +335,7 @@ static struct maybe_signed_intmax eval_expr(const struct earley_rule rule) {
 static struct maybe_signed_intmax eval_primary_expr(const struct earley_rule rule) {
     switch ((enum primary_expr_tag)rule.rhs.tag) {
         case PRIMARY_EXPR_IDENTIFIER:
-            preprocessor_fatal_error(0, 0, 0, "identifier should have been replaced with 0");
+            return msi_s(0);
         case PRIMARY_EXPR_CONSTANT:
             return eval_constant(*rule.completed_from.data[0]);
         case PRIMARY_EXPR_STRING:
@@ -549,12 +547,69 @@ static struct maybe_signed_intmax eval_int_const_expr(const struct earley_rule c
     return eval_cond_expr(*constant_expression_rule.completed_from.data[0]);
 }
 
-struct earley_rule *eval_if_section(const struct earley_rule if_section_rule) {
+static bool check_condition_in_pp_tokens_rule(const struct earley_rule pp_tokens_rule, const sstr_macro_args_and_body_map macro_map) {
+    pp_token_vec expr_tokens = pp_token_vec_new(pp_tokens_rule.completed_from.len);
+    for (size_t i = 0; i < pp_tokens_rule.completed_from.len; i++) {
+        const struct earley_rule pp_token_rule = *pp_tokens_rule.completed_from.data[i];
+        const struct preprocessing_token token = pp_token_rule.rhs.symbols.data[0].val.terminal.token;
+        pp_token_vec_append(&expr_tokens, token);
+    }
+    const struct earley_rule *expr_rule_macros_replaced = parse(replace_macros(expr_tokens.arr, macro_map), &tr_constant_expression);
+    if (expr_rule_macros_replaced == NULL) {
+        preprocessor_fatal_error(0, 0, 0, "After macro replacement, the constant expression is no longer valid");
+    }
+    const struct maybe_signed_intmax expr_val = eval_int_const_expr(*expr_rule_macros_replaced);
+    return msi_is_nonzero(expr_val);
+}
+
+struct earley_rule *eval_if_section(const struct earley_rule if_section_rule, const sstr_macro_args_and_body_map macro_map) {
     const struct earley_rule if_group_rule = *if_section_rule.completed_from.data[0];
-    const struct earley_rule expr_rule = *if_group_rule.completed_from.data[0];
-    const struct maybe_signed_intmax expr_val = eval_int_const_expr(expr_rule);
-    if (msi_is_nonzero(expr_val)) {
-        struct earley_rule *group_opt_rule = if_group_rule.completed_from.data[1];
+    switch ((enum if_group_tag)if_group_rule.rhs.tag) {
+        case IF_GROUP_IF: {
+            const struct earley_rule pp_tokens_rule = *if_group_rule.completed_from.data[0];
+            if (check_condition_in_pp_tokens_rule(pp_tokens_rule, macro_map)) {
+                struct earley_rule *group_opt_rule = if_group_rule.completed_from.data[1];
+                return group_opt_rule;
+            }
+            break;
+        }
+        case IF_GROUP_IFDEF: {
+            const struct earley_rule identifier_rule = *if_group_rule.completed_from.data[0];
+            const struct symbol identifier_symbol = identifier_rule.rhs.symbols.data[0];
+            const sstr identifier_name = identifier_symbol.val.terminal.token.name;
+            if (sstr_macro_args_and_body_map_contains(&macro_map, identifier_name)) {
+                struct earley_rule *group_opt_rule = if_group_rule.completed_from.data[1];
+                return group_opt_rule;
+            }
+            break;
+        }
+        case IF_GROUP_IFNDEF: {
+            const struct earley_rule identifier_rule = *if_group_rule.completed_from.data[0];
+            const struct symbol identifier_symbol = identifier_rule.rhs.symbols.data[0];
+            const sstr identifier_name = identifier_symbol.val.terminal.token.name;
+            if (!sstr_macro_args_and_body_map_contains(&macro_map, identifier_name)) {
+                struct earley_rule *group_opt_rule = if_group_rule.completed_from.data[1];
+                return group_opt_rule;
+            }
+            break;
+        }
+    }
+    const struct earley_rule elif_groups_opt_rule = *if_section_rule.completed_from.data[1];
+    if (elif_groups_opt_rule.rhs.tag == OPT_ONE) {
+        const struct earley_rule elif_groups_rule = *elif_groups_opt_rule.completed_from.data[0];
+        for (size_t i = 0; i < elif_groups_rule.completed_from.len; i++) {
+            const struct earley_rule elif_group_rule = *elif_groups_rule.completed_from.data[i];
+            const struct earley_rule pp_tokens_rule = *elif_group_rule.completed_from.data[0];
+            if (check_condition_in_pp_tokens_rule(pp_tokens_rule, macro_map)) {
+                struct earley_rule *group_opt_rule = elif_group_rule.completed_from.data[1];
+                return group_opt_rule;
+            }
+        }
+    }
+    const struct earley_rule else_group_opt_rule = *if_section_rule.completed_from.data[2];
+    if (else_group_opt_rule.rhs.tag == OPT_ONE) {
+        const struct earley_rule else_group_rule = *else_group_opt_rule.completed_from.data[0];
+        struct earley_rule *group_opt_rule = else_group_rule.completed_from.data[0];
         return group_opt_rule;
     } else {
         return NULL;
