@@ -18,6 +18,8 @@ set(SOURCE_FILES
         data_structures/heap_arr.h
         data_structures/sstr.c
         data_structures/sstr.h
+        preprocessor/preprocessor.c
+        preprocessor/preprocessor.h
 )
 
 project(ick C)

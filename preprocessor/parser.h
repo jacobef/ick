@@ -64,11 +64,9 @@ erule_p_harr_p_harr make_charts(pp_token_harr tokens, const struct production_ru
 
 void print_chart(const erule_p_harr *chart);
 void print_tree(const struct earley_rule *root, size_t indent);
-void test_parser(pp_token_harr tokens);
 
 struct earley_rule *parse(pp_token_harr tokens, const struct production_rule *root_rule);
 struct earley_rule *parse_full_file(pp_token_harr tokens);
-pp_token_harr preprocess_full_file_tree(const struct earley_rule *const root);
 
 extern const struct production_rule tr_preprocessing_file;
 extern const struct production_rule tr_group_opt;

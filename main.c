@@ -7,6 +7,7 @@
 #include "preprocessor/escaped_newlines.h"
 #include "preprocessor/pp_token.h"
 #include "preprocessor/parser.h"
+#include "preprocessor/preprocessor.h"
 
 char *ick_progname;
 
