@@ -44,8 +44,10 @@ int main(int argc, char *argv[]) {
     }
 
     FILE *output_file = fopen(output_fname, "w");
-    FREE(output_fname);
 
     const pp_token_harr preprocessed_tokens = preprocess_file(input_file);
     print_tokens(output_file, preprocessed_tokens, false, false);
+
+    printf("\nSuccessfully preprocessed to %s\n", output_fname);
+    FREE(output_fname);
 }
