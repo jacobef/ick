@@ -2,6 +2,8 @@
 
 #include "preprocessor/diagnostics.h"
 
+// TODO make sstr.data null-terminated
+
 bool sstr_cstr_eq(const sstr view, const char *const cstr) {
     for (size_t i = 0; i < view.len; i++) {
         if (cstr[i] == '\0' || view.data[i] != cstr[i]) return false;

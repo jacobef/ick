@@ -36,6 +36,7 @@ DEFINE_VEC_TYPE_AND_FUNCTIONS(token_with_ignore_list_harr)
 
 struct macro_use_info {
     sstr macro_name;
+    bool after_whitespace;
     size_t end_index;
     token_with_ignore_list_harr_harr args; // empty if object-like, but don't depend on that behavior
     token_with_ignore_list_harr vararg_tokens; // empty if doesn't accept varargs, but don't depend on that behavior
@@ -48,6 +49,6 @@ void define_object_like_macro(struct earley_rule rule, sstr_macro_args_and_body_
 void define_function_like_macro(struct earley_rule rule, sstr_macro_args_and_body_map *macros);
 void print_macros(const sstr_macro_args_and_body_map *macros);
 void reconstruct_macro_use(struct macro_use_info info);
-pp_token_harr replace_macros(pp_token_harr tokens, sstr_macro_args_and_body_map macro_map);
+pp_token_harr replace_macros(pp_token_harr tokens, sstr_macro_args_and_body_map macro_map, enum exclude_from_detection exclude_concatenation_type);
 
 #endif //MACROS_H

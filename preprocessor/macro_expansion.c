@@ -27,10 +27,7 @@ static pp_token_harr get_replacement_tokens(const struct earley_rule control_lin
     pp_token_vec replacement_tokens = pp_token_vec_new(0);
     if (pp_tokens_opt_rule.rhs.tag == OPT_ONE) {
         const struct earley_rule pp_tokens_rule = *pp_tokens_opt_rule.completed_from.data[0];
-        for (size_t i = 0; i < pp_tokens_rule.completed_from.len; i++) {
-            const struct earley_rule pp_token_rule = *pp_tokens_rule.completed_from.data[i];
-            pp_token_vec_append(&replacement_tokens, pp_token_rule.rhs.symbols.data[0].val.terminal.token);
-        }
+        pp_token_vec_append_all_harr(&replacement_tokens, pp_tokens_rule_as_harr(pp_tokens_rule));
     }
     return replacement_tokens.arr;
 }
@@ -156,6 +153,7 @@ void define_function_like_macro(const struct earley_rule rule, sstr_macro_args_a
 
 static struct macro_use_info get_macro_use_info(const token_with_ignore_list_harr tokens, const size_t macro_inv_start, const macro_args_and_body macro_def) {
     const sstr_vec new_dont_replace = sstr_vec_copy(tokens.data[macro_inv_start].dont_replace);
+    const bool after_whitespace = tokens.data[macro_inv_start].token.after_whitespace;
 
     if (macro_inv_start == tokens.len - 1 || !token_is_str(tokens.data[macro_inv_start + 1].token, "(")) {
         // object-like use
@@ -168,6 +166,7 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_har
         // object-like use of object-like macro
         return (struct macro_use_info) {
             .macro_name = tokens.data[macro_inv_start].token.name,
+            .after_whitespace = after_whitespace,
             .end_index = macro_inv_start + 1,
             .args = {.data = NULL, .len = 0},
             .is_function_like = false,
@@ -178,6 +177,7 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_har
         // function-like use of object-like macro
         return (struct macro_use_info) {
                 .macro_name = tokens.data[macro_inv_start].token.name,
+                .after_whitespace = after_whitespace,
                 .end_index = macro_inv_start + 1,
                 .args = {.data = NULL, .len = 0},
                 .is_function_like = false,
@@ -251,6 +251,7 @@ static struct macro_use_info get_macro_use_info(const token_with_ignore_list_har
 
     return (struct macro_use_info) {
         .macro_name = tokens.data[macro_inv_start].token.name,
+        .after_whitespace = after_whitespace,
         .end_index = i,
         .args = given_args.arr,
         .vararg_tokens = vararg_tokens.arr,
@@ -304,9 +305,9 @@ static bool sstr_harr_contains(const sstr_harr arr, const sstr view) {
     return false;
 }
 
-static token_with_ignore_list_harr replace_macros_helper(token_with_ignore_list_harr tokens, size_t scan_start, sstr_macro_args_and_body_map macro_map);
+static token_with_ignore_list_harr replace_macros_helper(token_with_ignore_list_harr tokens, size_t scan_start, sstr_macro_args_and_body_map macro_map, enum exclude_from_detection exclude_concatenation_type);
 
-static token_with_ignore_list_harr replace_arg(const token_with_ignore_list_harr arg, const sstr_macro_args_and_body_map macro_map, const sstr macro_name, const sstr_vec ignore_list) {
+static token_with_ignore_list_harr replace_arg(const token_with_ignore_list_harr arg, const sstr_macro_args_and_body_map macro_map, const sstr macro_name, const sstr_vec ignore_list, const enum exclude_from_detection exclude_concatenation_type) {
     token_with_ignore_list_vec arg_tokens = token_with_ignore_list_vec_new(0);
     for (size_t i = 0; i < arg.len; i++) {
         sstr_vec new_ignore_list = sstr_vec_copy(ignore_list);
@@ -315,7 +316,7 @@ static token_with_ignore_list_harr replace_arg(const token_with_ignore_list_harr
                 .token = arg.data[i].token, .dont_replace = new_ignore_list
         });
     }
-    const token_with_ignore_list_harr out = replace_macros_helper(arg_tokens.arr, 0, macro_map);
+    const token_with_ignore_list_harr out = replace_macros_helper(arg_tokens.arr, 0, macro_map, exclude_concatenation_type);
     for (size_t i = 0; i < out.len; i++) {
         sstr_vec_append(&out.data[i].dont_replace, macro_name);
     }
@@ -332,15 +333,14 @@ static pp_token_harr eval_stringifies(const struct macro_args_and_body macro_inf
             }
 
             pp_token_vec_append(&out, (struct preprocessing_token){
-                            .name = stringify(use_info.args.data[arg_index]),
-                            .type=STRING_LITERAL,
-                            .after_whitespace = macro_info.replacements.data[i].after_whitespace
-                    });
+                .name = stringify(use_info.args.data[arg_index]),
+                .type=STRING_LITERAL,
+                .after_whitespace = macro_info.replacements.data[i].after_whitespace
+            });
             i += 2;
         } else if (i == macro_info.replacements.len - 1 && token_is_str(macro_info.replacements.data[i], "#") && macro_info.is_function_like) {
             preprocessor_fatal_error(0, 0, 0, "# operator can't appear at the end of a macro");
-        }
-        else {
+        } else {
             pp_token_vec_append(&out, macro_info.replacements.data[i]);
             i++;
         }
@@ -351,7 +351,7 @@ static pp_token_harr eval_stringifies(const struct macro_args_and_body macro_inf
 typedef _Bool boolean;
 DEFINE_VEC_TYPE_AND_FUNCTIONS(boolean)
 
-static token_with_ignore_list_vec get_replacement(struct macro_args_and_body macro_info, struct macro_use_info use_info, const sstr_macro_args_and_body_map macro_map) {
+static token_with_ignore_list_vec get_replacement(struct macro_args_and_body macro_info, struct macro_use_info use_info, const sstr_macro_args_and_body_map macro_map, const enum exclude_from_detection exclude_concatenation_type) {
     printf("getting replacement for call of macro %.*s\n", (int)use_info.macro_name.len, (const char*)use_info.macro_name.data);
 
     // TODO error if __VA_ARGS__ is used outside a variadic macro
@@ -492,7 +492,7 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
                 boolean_vec_append(&needs_concat, false);
             } else {
                 // If it's an argument, add the given argument's tokens to the list
-                const token_with_ignore_list_harr new_arg = replace_arg(use_info.args.data[arg_index], macro_map, use_info.macro_name, use_info.dont_replace);
+                const token_with_ignore_list_harr new_arg = replace_arg(use_info.args.data[arg_index], macro_map, use_info.macro_name, use_info.dont_replace, exclude_concatenation_type);
                 token_with_ignore_list_vec_append_all_harr(&replaced_tokens, new_arg);
                 // None of its tokens are the right operand of the ## operator, so they shouldn't be concatenated with the preceding token
                 for (size_t j = 0; j < new_arg.len; j++) {
@@ -509,24 +509,30 @@ static token_with_ignore_list_vec get_replacement(struct macro_args_and_body mac
     for (size_t i = 0; i < replaced_tokens.arr.len; i++) {
         if (needs_concat.arr.data[i]) {
             const sstr concat_result = concatenate(out.arr.data[out.arr.len - 1].token.name, replaced_tokens.arr.data[i].token.name);
-            const bool token_valid = is_valid_token(concat_result, EXCLUDE_HEADER_NAME);
+
+            const bool token_valid = is_valid_token(concat_result, exclude_concatenation_type);
             if (!token_valid && concat_result.len != 0) {
                 preprocessor_fatal_error(0, 0, 0, "concat result %.*s is not a valid token", (int)concat_result.len, (const char*)concat_result.data);
             }
             // If a token needs to be concatenated with the preceding token, then we retroactively modify the preceding token
             out.arr.data[out.arr.len - 1].token.name = concat_result;
             if (token_valid) {
-                out.arr.data[out.arr.len - 1].token.type = get_token_type_from_str(concat_result, EXCLUDE_HEADER_NAME);
+                out.arr.data[out.arr.len - 1].token.type = get_token_type_from_str(concat_result, exclude_concatenation_type);
             }
         } else {
             token_with_ignore_list_vec_append(&out, replaced_tokens.arr.data[i]);
         }
     }
 
+    // The first token in the expansion is considered after whitespace if the first token of the macro call is after whitespace
+    if (out.arr.len > 0) {
+        out.arr.data[0].token.after_whitespace = use_info.after_whitespace;
+    }
+
     return out;
 }
 
-static token_with_ignore_list_harr replace_macros_helper(const token_with_ignore_list_harr tokens, const size_t scan_start, const sstr_macro_args_and_body_map macro_map) {
+static token_with_ignore_list_harr replace_macros_helper(const token_with_ignore_list_harr tokens, const size_t scan_start, const sstr_macro_args_and_body_map macro_map, const enum exclude_from_detection exclude_concatenation_type) {
     token_with_ignore_list_vec out = token_with_ignore_list_vec_new(0);
 
     bool ignore_replacements = false;
@@ -543,7 +549,7 @@ static token_with_ignore_list_harr replace_macros_helper(const token_with_ignore
                 i++;
                 continue;
             }
-            const token_with_ignore_list_vec replaced_tokens = get_replacement(macro_info, use_info, macro_map);
+            const token_with_ignore_list_vec replaced_tokens = get_replacement(macro_info, use_info, macro_map, exclude_concatenation_type);
             token_with_ignore_list_vec_append_all(&out, replaced_tokens);
             new_scan_start = i;
             i = use_info.end_index;
@@ -556,11 +562,11 @@ static token_with_ignore_list_harr replace_macros_helper(const token_with_ignore
     if (new_scan_start == tokens.len) {
         return out.arr;
     } else {
-        return replace_macros_helper(out.arr, new_scan_start, macro_map);
+        return replace_macros_helper(out.arr, new_scan_start, macro_map, exclude_concatenation_type);
     }
 }
 
-pp_token_harr replace_macros(const pp_token_harr tokens, const sstr_macro_args_and_body_map macro_map) {
+pp_token_harr replace_macros(const pp_token_harr tokens, const sstr_macro_args_and_body_map macro_map,  const enum exclude_from_detection exclude_concatenation_type) {
     token_with_ignore_list_vec tokens_with_ignore_list = token_with_ignore_list_vec_new(tokens.len);
     for (size_t i = 0; i < tokens.len; i++) {
         if (!token_is_str(tokens.data[i], "\n")) {
@@ -570,7 +576,7 @@ pp_token_harr replace_macros(const pp_token_harr tokens, const sstr_macro_args_a
             });
         }
     }
-    const token_with_ignore_list_harr replaced = replace_macros_helper(tokens_with_ignore_list.arr, 0, macro_map);
+    const token_with_ignore_list_harr replaced = replace_macros_helper(tokens_with_ignore_list.arr, 0, macro_map, exclude_concatenation_type);
     pp_token_vec out = pp_token_vec_new(replaced.len);
     for (size_t i = 0; i < replaced.len; i++) {
         if (replaced.data[i].token.name.len > 0) { // remove placemarkers

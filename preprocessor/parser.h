@@ -62,6 +62,8 @@ DEFINE_VEC_TYPE_AND_FUNCTIONS(erule_p_harr_p)
 DEFINE_VEC_TYPE_AND_FUNCTIONS(erule_p_vec_p)
 erule_p_harr_p_harr make_charts(pp_token_harr tokens, const struct production_rule *start_rule);
 
+pp_token_harr pp_tokens_rule_as_harr(struct earley_rule pp_tokens_rule);
+
 void print_chart(const erule_p_harr *chart);
 void print_tree(const struct earley_rule *root, size_t indent);
 

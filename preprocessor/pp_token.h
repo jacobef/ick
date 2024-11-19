@@ -120,7 +120,7 @@ struct preprocessing_token_detector {
 };
 enum exclude_from_detection {EXCLUDE_STRING_LITERAL, EXCLUDE_HEADER_NAME};
 
-pp_token_harr get_pp_tokens(sstr input);
+pp_token_harr get_pp_tokens(sstr input, bool starts_in_include);
 
 bool is_valid_token(sstr token, enum exclude_from_detection exclude);
 enum pp_token_type get_token_type_from_str(sstr token, enum exclude_from_detection exclude);

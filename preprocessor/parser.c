@@ -188,6 +188,16 @@ static void print_symbol(const struct symbol sym) {
     }
 }
 
+pp_token_harr pp_tokens_rule_as_harr(const struct earley_rule pp_tokens_rule) {
+    pp_token_vec out = pp_token_vec_new(pp_tokens_rule.completed_from.len);
+    for (size_t i = 0; i < pp_tokens_rule.completed_from.len; i++) {
+        const struct earley_rule pp_token_rule = *pp_tokens_rule.completed_from.data[i];
+        const struct preprocessing_token token = pp_token_rule.rhs.symbols.data[0].val.terminal.token;
+        pp_token_vec_append(&out, token);
+    }
+    return out.arr;
+}
+
 static void print_rule(const struct earley_rule rule) {
     printf("%s -> ", rule.lhs->name);
     for (size_t i = 0; i < rule.rhs.symbols.len; i++) {

@@ -291,9 +291,9 @@ static struct maybe_signed_intmax eval_int_constant(const struct earley_rule rul
         result += (target_uintmax_t)get_hex_digit_value(parse.digits.data[i]) * impow(base, parse.digits.len - i - 1);
     }
     if (!parse.is_signed || result > impow(2, sizeof(target_intmax_t)*8 - 1) - 1) {
-        return (struct maybe_signed_intmax) { .is_signed = true, .val.unsignd = result };
+        return (struct maybe_signed_intmax) { .is_signed = false, .val.unsignd = result };
     } else {
-        return (struct maybe_signed_intmax) { .is_signed = false, .val.signd = (target_intmax_t)result };
+        return (struct maybe_signed_intmax) { .is_signed = true, .val.signd = (target_intmax_t)result };
     }
 }
 
@@ -547,17 +547,49 @@ static struct maybe_signed_intmax eval_int_const_expr(const struct earley_rule c
     return eval_cond_expr(*constant_expression_rule.completed_from.data[0]);
 }
 
+static pp_token_harr replace_defineds(const pp_token_harr tokens, const sstr_macro_args_and_body_map macro_map) {
+    pp_token_vec out = pp_token_vec_new(tokens.len);
+    ssize_t to_inc;
+    for (ssize_t i = 0; i < tokens.len; i += to_inc) {
+        const sstr *macro_name = NULL;
+        to_inc = 1;
+        if (i <= tokens.len - 4
+            && token_is_str(tokens.data[i], "defined")
+            && token_is_str(tokens.data[i+1], "(")
+            && tokens.data[i+2].type == IDENTIFIER
+            && token_is_str(tokens.data[i+3], ")")) {
+                macro_name = &tokens.data[i+2].name;
+                to_inc = 4;
+        } else if (i <= tokens.len - 2
+            && token_is_str(tokens.data[i], "defined")
+            && tokens.data[i+1].type == IDENTIFIER) {
+                macro_name = &tokens.data[i+1].name;
+                to_inc = 2;
+        }
+
+        if (macro_name) {
+            const bool macro_defined = sstr_macro_args_and_body_map_contains(&macro_map, *macro_name);
+            pp_token_vec_append(&out, (struct preprocessing_token) {
+                .after_whitespace = tokens.data[i].after_whitespace,
+                .type = PP_NUMBER,
+                .name = macro_defined ? SSTR_FROM_LITERAL("1") : SSTR_FROM_LITERAL("0")
+            });
+        } else {
+            pp_token_vec_append(&out, tokens.data[i]);
+        }
+    }
+    return out.arr;
+}
+
 static bool check_condition_in_pp_tokens_rule(const struct earley_rule pp_tokens_rule, const sstr_macro_args_and_body_map macro_map) {
-    pp_token_vec expr_tokens = pp_token_vec_new(pp_tokens_rule.completed_from.len);
-    for (size_t i = 0; i < pp_tokens_rule.completed_from.len; i++) {
-        const struct earley_rule pp_token_rule = *pp_tokens_rule.completed_from.data[i];
-        const struct preprocessing_token token = pp_token_rule.rhs.symbols.data[0].val.terminal.token;
-        pp_token_vec_append(&expr_tokens, token);
-    }
-    const struct earley_rule *expr_rule_macros_replaced = parse(replace_macros(expr_tokens.arr, macro_map), &tr_constant_expression);
+    const pp_token_harr expr_tokens = pp_tokens_rule_as_harr(pp_tokens_rule);
+    const pp_token_harr expr_tokens_defineds_replaced = replace_defineds(expr_tokens, macro_map);
+    const struct earley_rule *expr_rule_macros_replaced = parse(replace_macros(expr_tokens_defineds_replaced, macro_map, EXCLUDE_HEADER_NAME), &tr_constant_expression);
     if (expr_rule_macros_replaced == NULL) {
-        preprocessor_fatal_error(0, 0, 0, "After macro replacement, the constant expression is no longer valid");
+        preprocessor_fatal_error(0, 0, 0, "Could not parse constant expression");
     }
+    print_with_color(TEXT_COLOR_LIGHT_RED, "Constant expression tree:\n");
+    print_tree(expr_rule_macros_replaced, 0);
     const struct maybe_signed_intmax expr_val = eval_int_const_expr(*expr_rule_macros_replaced);
     return msi_is_nonzero(expr_val);
 }

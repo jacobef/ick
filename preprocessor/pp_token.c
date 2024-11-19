@@ -381,14 +381,14 @@ bool token_is_str(const struct preprocessing_token token, const char *const str)
     return sstr_cstr_eq(token.name, str);
 }
 
-static bool in_include_directive(const pp_token_vec tokens) {
+static bool in_include_directive(const pp_token_vec tokens, const bool starts_in_include) {
     const bool at_beginning_of_file = tokens.arr.len == 2;
     const bool after_hashtag_include = tokens.arr.len >= 2
                                         && token_is_str(tokens.arr.data[tokens.arr.len - 2], "#")
                                         && token_is_str(tokens.arr.data[tokens.arr.len - 1], "include");
     const bool hashtag_after_newline = tokens.arr.len >= 3
                                         && token_is_str(tokens.arr.data[tokens.arr.len - 3], "\n");
-    return after_hashtag_include && (at_beginning_of_file || hashtag_after_newline);
+    return (starts_in_include && tokens.arr.len == 0) || (after_hashtag_include && (at_beginning_of_file || hashtag_after_newline));
 }
 
 static struct preprocessing_token_detector get_initial_detector(void) {
@@ -431,7 +431,7 @@ enum pp_token_type get_token_type_from_str(const sstr token, const enum exclude_
 }
 
 
-pp_token_harr get_pp_tokens(const sstr input) {
+pp_token_harr get_pp_tokens(const sstr input, bool starts_in_include) {
     // TODO:
     // Error on invalid tokens.
     // Currently, it skips over invalid tokens instead of erroring.
@@ -447,7 +447,7 @@ pp_token_harr get_pp_tokens(const sstr input) {
     for (size_t i = 0; i < input.len; i++) {
         // The token can't be a string literal if it's after #include, and it can't be a header name if it's not
         token_detector = detect_preprocessing_token(token_detector, input.data[i],
-                                                    in_include_directive(tokens) ? EXCLUDE_STRING_LITERAL : EXCLUDE_HEADER_NAME);
+                                                    in_include_directive(tokens, starts_in_include) ? EXCLUDE_STRING_LITERAL : EXCLUDE_HEADER_NAME);
         // If the token is valid, then indicate that and set token_at_most_recent_match to the token
         if (token_detector.status == MATCH) {
             match_exists = true;
@@ -530,7 +530,7 @@ void print_tokens(FILE *file, const pp_token_harr tokens, const bool ignore_whit
         if (token_is_str(token, ";") || token_is_str(token, "{") || token_is_str(token, "}")) {
             fprintf(file, "\n");
             bool next_token_is_closing_brace = i != tokens.len - 1 && token_is_str(tokens.data[i+1], "}");
-            for (size_t j = 0; j < (next_token_is_closing_brace ? indent - 1 : indent); j++) {
+            for (ssize_t j = 0; j < (next_token_is_closing_brace ? indent - 1 : indent); j++) {
                 fprintf(file, "\t");
             }
         }
